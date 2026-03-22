@@ -1,0 +1,8 @@
+* text=auto
+#store everything in LF format
+*.sv text eol=lf
+*.svh text eol=lf
+*.pkg text eol=lf
+*.tcl text eol=lf
+*.py text eol=lf
+Makefile text eol=lf
