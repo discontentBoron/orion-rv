@@ -8,7 +8,7 @@ __pycache__/
 *$py.class
 *.sh.log
 *.bash_history
-
+*.dtmp
 *.o
 *.obj
 *.so
