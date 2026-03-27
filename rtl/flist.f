@@ -5,7 +5,7 @@
 
 
 // Packages
-../rtl/orion_pkg.pkg
+../rtl/orion_pkg.sv
 
 // SRAM Models
 //../sram/sram_model.v
