@@ -16,6 +16,7 @@ package orion_pkg;
         logic [TAG_WIDTH-1:0]   p_src2;
         logic                   p_src1_valid;
         logic                   p_src2_valid;
+        logic                   valid;
         logic                   reg_we;
         logic                   except;
         except_cause_e          cause;
