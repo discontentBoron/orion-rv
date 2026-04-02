@@ -3,14 +3,7 @@ import orion_pkg::*;
 module rename_unit(
     input   logic                       clk,
     input   logic                       rst_n,
-    input   logic [REG_ADDR_WIDTH-1:0]  r_src1,
-    input   logic [REG_ADDR_WIDTH-1:0]  r_src2,
-    input   logic [REG_ADDR_WIDTH-1:0]  r_dst,
-    input   logic [DATA_WIDTH-1:0]      pc,
-    input   logic                       src1_valid,
-    input   logic                       src2_valid,
-    input   logic                       instr_valid,
-    input   except_cause_e              cause,
+    input   decode_rename_pkt_s         decode_rename_in,
     input   logic                       branch_mispredict,
     input   logic                       commit_valid,       //Instruction retired by ROB
     input   logic [REG_ADDR_WIDTH-1:0]  commit_rd,          //The arch. register which should hold the arch. state
@@ -32,7 +25,7 @@ module rename_unit(
     logic   free_list_full;
     logic   free_list_empty;
     logic   r_dst_zero;
-    assign  r_dst_zero = (r_dst == 0);
+    assign  r_dst_zero = (decode_rename_in.r_dst == 0);
     assign  free_list_empty =   (free_list_head == free_list_tail);
     assign  free_list_full = (free_list_head[TAG_WIDTH] != free_list_tail[TAG_WIDTH]) && (free_list_head[TAG_WIDTH-1:0] == free_list_tail[TAG_WIDTH-1:0]);
     always_ff @(posedge clk) begin
@@ -58,49 +51,49 @@ module rename_unit(
                 rename_dispatch_out.pc      <= 'bx;
                 rename_dispatch_out.except  <= 1'b0;
                 rename_dispatch_out.reg_we  <= 1'b0;
-                rename_dispatch_out.cause   <= cause;
+                rename_dispatch_out.cause   <= decode_rename_in.cause;
                 rename_dispatch_out.p_dest  <= 'bx;
                 rename_dispatch_out.p_src1_valid    <=  1'b0;
                 rename_dispatch_out.p_src2_valid    <=  1'b0;
                 rename_dispatch_out.p_src1  <=  'bx;
                 rename_dispatch_out.p_src2  <=  'bx;
-            end else if (instr_valid && (cause==EXCEPT_NONE) && ~free_list_empty) begin
+            end else if (decode_rename_in.valid && (decode_rename_in.cause==EXCEPT_NONE) && ~free_list_empty) begin
                 case(r_dst_zero)
                     1'b0: begin
-                        spec_reg_map[r_dst]         <=  phy_dst;
+                        spec_reg_map[decode_rename_in.r_dst]         <=  phy_dst;
                         free_list_head              <=  free_list_head + 1;
                         rename_dispatch_out.valid   <=  1'b1;
-                        rename_dispatch_out.pc      <=  pc;
+                        rename_dispatch_out.pc      <=  decode_rename_in.pc;
                         rename_dispatch_out.except  <=  1'b0;
                         rename_dispatch_out.reg_we  <=  1'b1;
-                        rename_dispatch_out.cause   <=  cause;
+                        rename_dispatch_out.cause   <=  decode_rename_in.cause;
                         rename_dispatch_out.p_dest  <=  phy_dst;
                         rename_dispatch_out.p_src1  <=  phy_src1;
                         rename_dispatch_out.p_src2  <=  phy_src2; 
-                        rename_dispatch_out.p_src1_valid    <=  src1_valid;
-                        rename_dispatch_out.p_src2_valid    <=  src2_valid;
+                        rename_dispatch_out.p_src1_valid    <=  decode_rename_in.src1_valid;
+                        rename_dispatch_out.p_src2_valid    <=  decode_rename_in.src2_valid;
                         rename_dispatch_out.old_p_dest      <=  old_p_dest; 
                     end
                     1'b1: begin
                         rename_dispatch_out.valid   <=  1'b1;
                         free_list_head              <=  free_list_head;
-                        rename_dispatch_out.pc      <=  pc;
+                        rename_dispatch_out.pc      <=  decode_rename_in.pc;
                         rename_dispatch_out.except  <=  1'b0;
                         rename_dispatch_out.reg_we  <=  1'b0;
-                        rename_dispatch_out.cause   <=  cause;
+                        rename_dispatch_out.cause   <=  decode_rename_in.cause;
                         rename_dispatch_out.p_dest  <=  'b0;
                         rename_dispatch_out.p_src1  <=  phy_src1;
                         rename_dispatch_out.p_src2  <=  phy_src2; 
-                        rename_dispatch_out.p_src1_valid    <=  src1_valid;
-                        rename_dispatch_out.p_src2_valid    <=  src2_valid;
+                        rename_dispatch_out.p_src1_valid    <=  decode_rename_in.src1_valid;
+                        rename_dispatch_out.p_src2_valid    <=  decode_rename_in.src2_valid;
                         rename_dispatch_out.old_p_dest      <=  'b0; 
                     end
                     default: begin
                         rename_dispatch_out.valid   <= 1'b0;
-                        rename_dispatch_out.pc      <= pc;
+                        rename_dispatch_out.pc      <= decode_rename_in.pc;
                         rename_dispatch_out.except  <= 1'b1;
                         rename_dispatch_out.reg_we  <= 1'b0;
-                        rename_dispatch_out.cause   <= cause;
+                        rename_dispatch_out.cause   <= decode_rename_in.cause;
                         rename_dispatch_out.p_dest  <= 32'bx;
                         rename_dispatch_out.p_src1_valid    <=  1'b0;
                         rename_dispatch_out.p_src2_valid    <=  1'b0;
@@ -112,10 +105,10 @@ module rename_unit(
                 
             end else begin
                 rename_dispatch_out.valid   <= 1'b0;
-                rename_dispatch_out.pc      <= pc;
+                rename_dispatch_out.pc      <= decode_rename_in.pc;
                 rename_dispatch_out.except  <= 1'b0;
                 rename_dispatch_out.reg_we  <= 1'b0;
-                rename_dispatch_out.cause   <= cause;
+                rename_dispatch_out.cause   <= decode_rename_in.cause;
                 rename_dispatch_out.p_dest  <= 'bx;
                 rename_dispatch_out.p_src1_valid    <=  1'b0;
                 rename_dispatch_out.p_src2_valid    <=  1'b0;
@@ -133,24 +126,24 @@ module rename_unit(
     end
     
     always_comb begin
-        old_p_dest  =   spec_reg_map[r_dst];
+        old_p_dest  =   spec_reg_map[decode_rename_in.r_dst];
         phy_dst = free_list[free_list_head[TAG_WIDTH-1:0]];
-        case({src1_valid,src2_valid})
+        case({decode_rename_in.src1_valid, decode_rename_in.src2_valid})
             2'b00: begin
                 phy_src1 = 'x;
                 phy_src2 = 'x;
             end
             2'b01: begin
                 phy_src1 = 'x;
-                phy_src2 = spec_reg_map[r_src2];
+                phy_src2 = spec_reg_map[decode_rename_in.r_src2];
             end
             2'b10: begin
-                phy_src1 = spec_reg_map[r_src1];
+                phy_src1 = spec_reg_map[decode_rename_in.r_src1];
                 phy_src2 = 'x;
             end
             2'b11: begin
-                phy_src1 = spec_reg_map[r_src1];
-                phy_src2 = spec_reg_map[r_src2];
+                phy_src1 = spec_reg_map[decode_rename_in.r_src1];
+                phy_src2 = spec_reg_map[decode_rename_in.r_src2];
             end
             default: begin
                 phy_src1 = 'x;
@@ -158,5 +151,5 @@ module rename_unit(
             end
         endcase
     end
-    assign rename_stall = instr_valid & free_list_empty & ~r_dst_zero;
+    assign rename_stall = decode_rename_in.valid & free_list_empty & ~r_dst_zero;
 endmodule
