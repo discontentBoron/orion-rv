@@ -8,9 +8,11 @@ package orion_pkg;
 
     typedef enum logic [1:0]{
         EXCEPT_NONE         = 2'b00,
-        EXCEPT_ILLEGAL_INST = 2'b01
+        EXCEPT_ILLEGAL_INST = 2'b10
     }   except_cause_e;
+
     typedef struct packed {
+        logic [TAG_WIDTH-1:0]   old_p_dest;
         logic [TAG_WIDTH-1:0]   p_dest;
         logic [TAG_WIDTH-1:0]   p_src1;
         logic [TAG_WIDTH-1:0]   p_src2;

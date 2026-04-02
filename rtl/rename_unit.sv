@@ -22,23 +22,27 @@ module rename_unit(
     logic   [TAG_WIDTH-1:0] phy_dst;
     logic   [TAG_WIDTH-1:0] phy_src1;
     logic   [TAG_WIDTH-1:0] phy_src2;
-    logic   [PHY_REGS-1:0]  free_list_arch;  
-    logic   [PHY_REGS-1:0]  free_list_phy;
+    logic   [TAG_WIDTH-1:0] free_list   [PHY_REGS-1:0];
     logic   [TAG_WIDTH-1:0] spec_reg_map [ARCH_REGS-1:0];
     logic   [TAG_WIDTH-1:0] arch_reg_map [ARCH_REGS-1:0];
+    logic   [TAG_WIDTH:0]   free_list_head;
+    logic   [TAG_WIDTH:0]   free_list_head_arch;
+    logic   [TAG_WIDTH:0]   free_list_tail; 
+    logic   [REG_ADDR_WIDTH-1:0]    old_p_dest;
+    logic   free_list_full;
     logic   free_list_empty;
     logic   r_dst_zero;
     assign  r_dst_zero = (r_dst == 0);
-    assign  free_list_empty     = ~|(free_list_phy);
+    assign  free_list_empty =   (free_list_head == free_list_tail);
+    assign  free_list_full = (free_list_head[TAG_WIDTH] != free_list_tail[TAG_WIDTH]) && (free_list_head[TAG_WIDTH-1:0] == free_list_tail[TAG_WIDTH-1:0]);
     always_ff @(posedge clk) begin
         if (~rst_n) begin
-            // Set initial mask for free list
-            for (int i = 0; i <= ARCH_REGS-1; i++) begin
-                free_list_arch[i] <= 1'b0;
-                free_list_phy[i]  <= 1'b0;
-                free_list_arch[i+ARCH_REGS] <= 1'b1;
-                free_list_phy[i+ARCH_REGS] <= 1'b1;
+            for (int i = 0; i <= ARCH_REGS - 1; i++) begin
+                free_list[i] <= i + PHY_REGS/2;
             end
+            free_list_head_arch <= 7'd0;
+            free_list_head  <=  7'd0;
+            free_list_tail  <=  7'd32;
             // Unity mapping
             for (int i = 0; i <= ARCH_REGS-1; i++) begin
                 arch_reg_map[i] <= i;
@@ -48,22 +52,23 @@ module rename_unit(
         else begin
             if (branch_mispredict) begin
                 spec_reg_map    <=  arch_reg_map;
-                free_list_phy   <=  free_list_arch;
+                free_list_head  <=  free_list_head_arch;
+                rename_dispatch_out.old_p_dest  <= 'bx;
                 rename_dispatch_out.valid   <= 1'b0;
-                rename_dispatch_out.pc      <= pc;
+                rename_dispatch_out.pc      <= 'bx;
                 rename_dispatch_out.except  <= 1'b0;
                 rename_dispatch_out.reg_we  <= 1'b0;
                 rename_dispatch_out.cause   <= cause;
-                rename_dispatch_out.p_dest  <= 32'bx;
+                rename_dispatch_out.p_dest  <= 'bx;
                 rename_dispatch_out.p_src1_valid    <=  1'b0;
                 rename_dispatch_out.p_src2_valid    <=  1'b0;
-                rename_dispatch_out.p_src1  <=  32'bx;
-                rename_dispatch_out.p_src2  <=  32'bx;
+                rename_dispatch_out.p_src1  <=  'bx;
+                rename_dispatch_out.p_src2  <=  'bx;
             end else if (instr_valid && (cause==EXCEPT_NONE) && ~free_list_empty) begin
                 case(r_dst_zero)
                     1'b0: begin
                         spec_reg_map[r_dst]         <=  phy_dst;
-                        free_list_phy[phy_dst]      <=  1'b0;
+                        free_list_head              <=  free_list_head + 1;
                         rename_dispatch_out.valid   <=  1'b1;
                         rename_dispatch_out.pc      <=  pc;
                         rename_dispatch_out.except  <=  1'b0;
@@ -72,20 +77,23 @@ module rename_unit(
                         rename_dispatch_out.p_dest  <=  phy_dst;
                         rename_dispatch_out.p_src1  <=  phy_src1;
                         rename_dispatch_out.p_src2  <=  phy_src2; 
-                        rename_dispatch_out.p_src1_valid  <=  src1_valid;
-                        rename_dispatch_out.p_src2_valid  <=  src2_valid;
+                        rename_dispatch_out.p_src1_valid    <=  src1_valid;
+                        rename_dispatch_out.p_src2_valid    <=  src2_valid;
+                        rename_dispatch_out.old_p_dest      <=  old_p_dest; 
                     end
                     1'b1: begin
                         rename_dispatch_out.valid   <=  1'b1;
+                        free_list_head              <=  free_list_head;
                         rename_dispatch_out.pc      <=  pc;
                         rename_dispatch_out.except  <=  1'b0;
-                        rename_dispatch_out.reg_we  <=  1'b1;
+                        rename_dispatch_out.reg_we  <=  1'b0;
                         rename_dispatch_out.cause   <=  cause;
                         rename_dispatch_out.p_dest  <=  'b0;
                         rename_dispatch_out.p_src1  <=  phy_src1;
                         rename_dispatch_out.p_src2  <=  phy_src2; 
-                        rename_dispatch_out.p_src1_valid  <=  src1_valid;
-                        rename_dispatch_out.p_src2_valid  <=  src2_valid;
+                        rename_dispatch_out.p_src1_valid    <=  src1_valid;
+                        rename_dispatch_out.p_src2_valid    <=  src2_valid;
+                        rename_dispatch_out.old_p_dest      <=  'b0; 
                     end
                     default: begin
                         rename_dispatch_out.valid   <= 1'b0;
@@ -96,40 +104,37 @@ module rename_unit(
                         rename_dispatch_out.p_dest  <= 32'bx;
                         rename_dispatch_out.p_src1_valid    <=  1'b0;
                         rename_dispatch_out.p_src2_valid    <=  1'b0;
-                        rename_dispatch_out.p_src1  <=  32'bx;
-                        rename_dispatch_out.p_src2  <=  32'bx;
+                        rename_dispatch_out.old_p_dest      <=  'bx;
+                        rename_dispatch_out.p_src1  <=  'bx;
+                        rename_dispatch_out.p_src2  <=  'bx;
                     end
                 endcase
                 
             end else begin
                 rename_dispatch_out.valid   <= 1'b0;
                 rename_dispatch_out.pc      <= pc;
-                rename_dispatch_out.except  <= 1'b1;
+                rename_dispatch_out.except  <= 1'b0;
                 rename_dispatch_out.reg_we  <= 1'b0;
                 rename_dispatch_out.cause   <= cause;
-                rename_dispatch_out.p_dest  <= 32'bx;
+                rename_dispatch_out.p_dest  <= 'bx;
                 rename_dispatch_out.p_src1_valid    <=  1'b0;
                 rename_dispatch_out.p_src2_valid    <=  1'b0;
-                rename_dispatch_out.p_src1  <=  32'bx;
-                rename_dispatch_out.p_src2  <=  32'bx;
+                rename_dispatch_out.old_p_dest      <=  'bx;
+                rename_dispatch_out.p_src1  <=  'bx;
+                rename_dispatch_out.p_src2  <=  'bx;
             end
             if(commit_valid) begin
                 arch_reg_map[commit_rd]         <=  commit_pd;
-                free_list_arch[commit_pd]       <=  1'b0;
-                free_list_phy[commit_old_pd]    <=  1'b1;
-                free_list_arch[commit_old_pd]   <=  1'b1;
+                free_list_tail                  <=  (commit_rd != 0) ? free_list_tail + 1:free_list_tail;
+                free_list_head_arch             <=  (commit_rd != 0) ? free_list_head_arch + 1 : free_list_head_arch;
+                free_list[free_list_tail[TAG_WIDTH-1:0]]    <=  commit_old_pd;
             end
         end
     end
     
     always_comb begin
-        phy_dst = 32'bx;
-        for (int i = 0; i <= PHY_REGS-1; i++) begin
-            if (free_list_phy[i] == 1'b1) begin
-                phy_dst = i;
-                break; 
-            end  
-        end
+        old_p_dest  =   spec_reg_map[r_dst];
+        phy_dst = free_list[free_list_head[TAG_WIDTH-1:0]];
         case({src1_valid,src2_valid})
             2'b00: begin
                 phy_src1 = 'x;
