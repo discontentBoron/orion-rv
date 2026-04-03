@@ -22,7 +22,7 @@ module rename_unit(
     logic   [TAG_WIDTH:0]   free_list_head;
     logic   [TAG_WIDTH:0]   free_list_head_arch;
     logic   [TAG_WIDTH:0]   free_list_tail; 
-    logic   [REG_ADDR_WIDTH-1:0]    old_p_dest;
+    logic   [TAG_WIDTH-1:0]    old_p_dest;
     logic   free_list_full;
     logic   free_list_empty;
     logic   r_dst_zero;
@@ -31,6 +31,7 @@ module rename_unit(
     assign  free_list_full = (free_list_head[TAG_WIDTH] != free_list_tail[TAG_WIDTH]) && (free_list_head[TAG_WIDTH-1:0] == free_list_tail[TAG_WIDTH-1:0]);
     always_ff @(posedge clk) begin
         if (~rst_n) begin
+            rename_dispatch_out <= 'b0;
             for (int i = 0; i <= ARCH_REGS - 1; i++) begin
                 free_list[i] <= i + PHY_REGS/2;
             end
@@ -73,7 +74,7 @@ module rename_unit(
                         rename_dispatch_out.p_src2  <=  phy_src2; 
                         rename_dispatch_out.p_src1_valid    <=  decode_rename_in.src1_valid;
                         rename_dispatch_out.p_src2_valid    <=  decode_rename_in.src2_valid;
-                        rename_dispatch_out.old_p_dest      <=  old_p_dest; 
+                        rename_dispatch_out.old_p_dest      <=  old_p_dest;
                         rename_dispatch_out.imm_val         <=  decode_rename_in.imm_val;
                         rename_dispatch_out.predicted_pc    <=  decode_rename_in.predicted_pc;
                         rename_dispatch_out.instr_class     <=  decode_rename_in.instr_class;
