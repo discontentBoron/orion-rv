@@ -1,4 +1,5 @@
 `timescale 1ns/1ps
+//TODO: Forwarding additional data to dispatch stage
 import orion_pkg::*;
 module rename_unit(
     input   logic                       clk,
@@ -73,6 +74,11 @@ module rename_unit(
                         rename_dispatch_out.p_src1_valid    <=  decode_rename_in.src1_valid;
                         rename_dispatch_out.p_src2_valid    <=  decode_rename_in.src2_valid;
                         rename_dispatch_out.old_p_dest      <=  old_p_dest; 
+                        rename_dispatch_out.imm_val         <=  decode_rename_in.imm_val;
+                        rename_dispatch_out.predicted_pc    <=  decode_rename_in.predicted_pc;
+                        rename_dispatch_out.instr_class     <=  decode_rename_in.instr_class;
+                        rename_dispatch_out.func_unit_type  <=  decode_rename_in.func_unit_type;
+                        rename_dispatch_out.exec_unit_uop   <=  decode_rename_in.exec_unit_uop;
                     end
                     1'b1: begin
                         rename_dispatch_out.valid   <=  1'b1;
@@ -87,6 +93,11 @@ module rename_unit(
                         rename_dispatch_out.p_src1_valid    <=  decode_rename_in.src1_valid;
                         rename_dispatch_out.p_src2_valid    <=  decode_rename_in.src2_valid;
                         rename_dispatch_out.old_p_dest      <=  'b0; 
+                        rename_dispatch_out.imm_val         <=  decode_rename_in.imm_val;
+                        rename_dispatch_out.predicted_pc    <=  decode_rename_in.predicted_pc;
+                        rename_dispatch_out.instr_class     <=  decode_rename_in.instr_class;
+                        rename_dispatch_out.func_unit_type  <=  decode_rename_in.func_unit_type;
+                        rename_dispatch_out.exec_unit_uop   <=  decode_rename_in.exec_unit_uop;
                     end
                     default: begin
                         rename_dispatch_out.valid   <= 1'b0;
@@ -100,6 +111,11 @@ module rename_unit(
                         rename_dispatch_out.old_p_dest      <=  'bx;
                         rename_dispatch_out.p_src1  <=  'bx;
                         rename_dispatch_out.p_src2  <=  'bx;
+                        rename_dispatch_out.imm_val         <=  decode_rename_in.imm_val;
+                        rename_dispatch_out.predicted_pc    <=  decode_rename_in.predicted_pc;
+                        rename_dispatch_out.instr_class     <=  decode_rename_in.instr_class;
+                        rename_dispatch_out.func_unit_type  <=  decode_rename_in.func_unit_type;
+                        rename_dispatch_out.exec_unit_uop   <=  decode_rename_in.exec_unit_uop;
                     end
                 endcase
                 
@@ -115,6 +131,11 @@ module rename_unit(
                 rename_dispatch_out.old_p_dest      <=  'bx;
                 rename_dispatch_out.p_src1  <=  'bx;
                 rename_dispatch_out.p_src2  <=  'bx;
+                rename_dispatch_out.imm_val         <=  decode_rename_in.imm_val;
+                rename_dispatch_out.predicted_pc    <=  decode_rename_in.predicted_pc;
+                rename_dispatch_out.instr_class     <=  decode_rename_in.instr_class;
+                rename_dispatch_out.func_unit_type  <=  decode_rename_in.func_unit_type;
+                rename_dispatch_out.exec_unit_uop   <=  decode_rename_in.exec_unit_uop;
             end
             if(commit_valid) begin
                 arch_reg_map[commit_rd]         <=  commit_pd;

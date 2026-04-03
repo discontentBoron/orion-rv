@@ -19,10 +19,9 @@ package orion_pkg;
         S_TYPE  =   3'b100,
         B_TYPE  =   3'b101
     }   instr_type_e;
-    typedef enum logic[2:0]{
+    typedef enum logic[1:0]{
         FU_ALU,
-        FU_MUL,
-        FU_DIV,
+        FU_MULDIV,
         FU_BRANCH,
         FU_LSU
     }   func_unit_type_e;
@@ -88,7 +87,7 @@ package orion_pkg;
         except_cause_e              cause;
         instr_class_e               instr_class;
         func_unit_type_e            func_unit_type;
-        exec_unit_opcode_e          exec_unit;
+        exec_unit_opcode_e          exec_unit_uop;
     }   decode_rename_pkt_s;
 
     typedef struct packed {
@@ -101,7 +100,12 @@ package orion_pkg;
         logic                   valid;
         logic                   reg_we;
         logic                   except;
-        except_cause_e          cause;
-        logic [DATA_WIDTH-1:0]  pc;
+        logic   [DATA_WIDTH-1:0]    pc;
+        logic   [DATA_WIDTH-1:0]    imm_val;
+        logic   [DATA_WIDTH-1:0]    predicted_pc;
+        except_cause_e              cause;
+        instr_class_e               instr_class;
+        func_unit_type_e            func_unit_type;
+        exec_unit_opcode_e          exec_unit_uop;
     }   rename_dispatch_pkt_s;
 endpackage
