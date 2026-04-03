@@ -12,3 +12,4 @@
 
 // RTL Source
 /* rtl files here */
+../rtl/rename_unit.sv

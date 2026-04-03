@@ -19,10 +19,10 @@ compile: lib
 	$(VLOG) -sv $(TB_FILES)
 #run simulation
 sim:
-	$(VSIM) -c -do "run -all; quit" work.top_tb
+	$(VSIM) -c -do "run -all; quit" work.rename_unit_tb
 #debug in gui with waveform
-gui:
-	$(VSIM) -voptargs="+acc" work.top_tb &
+gui:compile
+	$(VSIM) -voptargs="+acc" work.rename_unit_tb 
 #clean files
 clean:
 	rm -rf work vsim.wlf transcript
