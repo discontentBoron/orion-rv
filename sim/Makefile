@@ -4,7 +4,10 @@ VLIB = vlib
 
 #paths
 RTL_FLIST = ../rtl/flist.f
-TB_FILES  = ../tb/*.sv
+TB_DIR  = ../tb/
+
+#Default testbench
+TB_FILE ?= top_tb
 
 #default
 all: compile sim
@@ -16,13 +19,13 @@ lib:
 #compile using the filelist
 compile: lib
 	$(VLOG) -sv -f $(RTL_FLIST)
-	$(VLOG) -sv $(TB_FILES)
+	$(VLOG) -sv $(TB_DIR)/$(TB_FILE).sv
 #run simulation
 sim:
-	$(VSIM) -c -do "run -all; quit" work.rename_unit_tb
-#debug in gui with waveform
+	$(VSIM) -c -do "run -all; quit" work.$(TB_FILE)
+#Debug in gui with waveform
 gui:compile
-	$(VSIM) -voptargs="+acc" work.rename_unit_tb 
+	$(VSIM) -voptargs="+acc" work.$(TB_FILE) 
 #clean files
 clean:
 	rm -rf work vsim.wlf transcript
