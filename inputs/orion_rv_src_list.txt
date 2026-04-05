@@ -5,11 +5,11 @@
 
 
 // Packages
-../rtl/orion_pkg.sv
+../src/rtl/orion_pkg.sv
 
 // SRAM Models
 //../sram/sram_model.v
 
 // RTL Source
 /* rtl files here */
-../rtl/rename_unit.sv
+../src/rtl/rename_unit.sv

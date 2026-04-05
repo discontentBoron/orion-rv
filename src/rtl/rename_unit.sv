@@ -1,5 +1,4 @@
 `timescale 1ns/1ps
-//TODO: Forwarding additional data to dispatch stage
 import orion_pkg::*;
 module rename_unit(
     input   logic                       clk,
