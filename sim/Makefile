@@ -21,10 +21,10 @@ compile: lib
 	$(VLOG) -sv -f $(RTL_FLIST)
 	$(VLOG) -sv $(TB_DIR)/$(TB_FILE).sv
 #run simulation
-sim:
+sim: compile
 	$(VSIM) -c -do "run -all; quit" work.$(TB_FILE)
 #Debug in gui with waveform
-gui:compile
+gui: compile
 	$(VSIM) -voptargs="+acc" work.$(TB_FILE) 
 #clean files
 clean:

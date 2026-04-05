@@ -3,7 +3,7 @@ import orion_pkg::*;
 module rename_unit(
     input   logic                       clk,
     input   logic                       rst_n,
-    input   decode_rename_pkt_s         decode_rename_in,
+    input   var decode_rename_pkt_s     decode_rename_in,
     input   logic                       branch_mispredict,
     input   logic                       commit_valid,       //Instruction retired by ROB
     input   logic [REG_ADDR_WIDTH-1:0]  commit_rd,          //The arch. register which should hold the arch. state
