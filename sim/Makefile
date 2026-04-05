@@ -3,7 +3,7 @@ VSIM = vsim
 VLIB = vlib
 
 #paths
-RTL_FLIST = ../rtl/flist.f
+RTL_FLIST = ../rtl/flist.txt
 TB_DIR  = ../tb/
 
 #Default testbench
