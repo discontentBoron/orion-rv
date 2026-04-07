@@ -65,7 +65,7 @@ module rename_unit(
                         free_list_head              <=  free_list_head + 1;
                         rename_dispatch_out.valid   <=  1'b1;
                         rename_dispatch_out.pc      <=  decode_rename_in.pc;
-                        rename_dispatch_out.except  <=  1'b0;
+                        rename_dispatch_out.except  <=  decode_rename_in.except;
                         rename_dispatch_out.reg_we  <=  1'b1;
                         rename_dispatch_out.cause   <=  decode_rename_in.cause;
                         rename_dispatch_out.p_dest  <=  phy_dst;
@@ -84,7 +84,7 @@ module rename_unit(
                         rename_dispatch_out.valid   <=  1'b1;
                         free_list_head              <=  free_list_head;
                         rename_dispatch_out.pc      <=  decode_rename_in.pc;
-                        rename_dispatch_out.except  <=  1'b0;
+                        rename_dispatch_out.except  <=  decode_rename_in.except;
                         rename_dispatch_out.reg_we  <=  1'b0;
                         rename_dispatch_out.cause   <=  decode_rename_in.cause;
                         rename_dispatch_out.p_dest  <=  'b0;
@@ -102,7 +102,7 @@ module rename_unit(
                     default: begin
                         rename_dispatch_out.valid   <= 1'b0;
                         rename_dispatch_out.pc      <= decode_rename_in.pc;
-                        rename_dispatch_out.except  <= 1'b1;
+                        rename_dispatch_out.except  <= 1'b0;
                         rename_dispatch_out.reg_we  <= 1'b0;
                         rename_dispatch_out.cause   <= decode_rename_in.cause;
                         rename_dispatch_out.p_dest  <= 32'bx;
