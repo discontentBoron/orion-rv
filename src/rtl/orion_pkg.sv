@@ -84,6 +84,7 @@ package orion_pkg;
         logic   [REG_ADDR_WIDTH-1:0]    r_dst;
         logic   [REG_ADDR_WIDTH-1:0]    r_src1;
         logic   [REG_ADDR_WIDTH-1:0]    r_src2;
+        logic                       except;
         except_cause_e              cause;
         instr_class_e               instr_class;
         func_unit_type_e            func_unit_type;
