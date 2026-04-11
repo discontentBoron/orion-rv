@@ -34,6 +34,9 @@ module rename_unit(
             for (int i = 0; i <= ARCH_REGS - 1; i++) begin
                 free_list[i] <= i + PHY_REGS/2;
             end
+            for (int i = ARCH_REGS; i <= PHY_REGS - 1; i++) begin
+                free_list[i] <= 'b0;
+            end
             free_list_head_arch <= 7'd0;
             free_list_head  <=  7'd0;
             free_list_tail  <=  7'd32;

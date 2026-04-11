@@ -26,6 +26,20 @@ module rename_unit_tb;
     // --------------------------------------------------------
     // DUT instantiation
     // --------------------------------------------------------
+    `ifdef GATE_LEVEL
+        rename_unit_wrapper dut (
+            .clk                (clk),
+            .rst_n              (rst_n),
+            .decode_rename_in   (decode_rename_in),
+            .branch_mispredict  (branch_mispredict),
+            .commit_valid       (commit_valid),
+            .commit_rd          (commit_rd),
+            .commit_pd          (commit_pd),
+            .commit_old_pd      (commit_old_pd),
+            .rename_stall       (rename_stall),
+            .rename_dispatch_out(rename_dispatch_out)
+        );
+    `else 
     rename_unit dut (
         .clk                (clk),
         .rst_n              (rst_n),
@@ -38,6 +52,8 @@ module rename_unit_tb;
         .rename_stall       (rename_stall),
         .rename_dispatch_out(rename_dispatch_out)
     );
+    `endif
+    
     initial clk = 0;
     always #5 clk = ~clk;
 
@@ -592,6 +608,7 @@ module rename_unit_tb;
         check(rename_stall,              1'b0, "T10: no stall after free list refilled");
         // The first freed register (p1, old mapping of first commit) should be at head
         check_tag(rename_dispatch_out.p_dest, 6'd1, "T10: first reallocation after wraparound gets p1");
+        $display("T10: p_dest after wraparound = p%0d", rename_dispatch_out.p_dest);
     endtask
 
     // ========================================================
