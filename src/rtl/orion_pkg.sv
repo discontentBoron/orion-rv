@@ -5,7 +5,7 @@ package orion_pkg;
     parameter REG_ADDR_WIDTH    =   $clog2(ARCH_REGS);
     parameter TAG_WIDTH         =   $clog2(PHY_REGS);
     parameter DATA_WIDTH        =   32;
-
+    parameter ROB_SIZE          =   32;
     typedef enum logic [1:0]{
         EXCEPT_NONE         = 2'b00,
         EXCEPT_ILLEGAL_INST = 2'b10

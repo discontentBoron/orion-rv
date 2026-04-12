@@ -26,6 +26,20 @@ module rename_unit_tb;
     // --------------------------------------------------------
     // DUT instantiation
     // --------------------------------------------------------
+    `ifdef GATE_LEVEL
+        rename_unit_wrapper dut (
+            .clk                (clk),
+            .rst_n              (rst_n),
+            .decode_rename_in   (decode_rename_in),
+            .branch_mispredict  (branch_mispredict),
+            .commit_valid       (commit_valid),
+            .commit_rd          (commit_rd),
+            .commit_pd          (commit_pd),
+            .commit_old_pd      (commit_old_pd),
+            .rename_stall       (rename_stall),
+            .rename_dispatch_out(rename_dispatch_out)
+        );
+    `else 
     rename_unit dut (
         .clk                (clk),
         .rst_n              (rst_n),
@@ -38,6 +52,8 @@ module rename_unit_tb;
         .rename_stall       (rename_stall),
         .rename_dispatch_out(rename_dispatch_out)
     );
+    `endif
+    
     initial clk = 0;
     always #5 clk = ~clk;
 
@@ -99,6 +115,7 @@ module rename_unit_tb;
         decode_rename_in.src1_valid     = 0;
         decode_rename_in.src2_valid     = 0;
         decode_rename_in.valid          = 0;
+        decode_rename_in.except         = 0;
         decode_rename_in.cause          = EXCEPT_NONE;
         branch_mispredict   = 0;
         commit_valid        = 0;
@@ -118,16 +135,39 @@ module rename_unit_tb;
         input                      s1v,
         input                      s2v
     );
-        decode_rename_in.r_src1            = i_src1;
-        decode_rename_in.r_src2            = i_src2;
-        decode_rename_in.r_dst             = i_dst;
-        decode_rename_in.pc                = i_pc;
-        decode_rename_in.src1_valid        = s1v;
-        decode_rename_in.src2_valid        = s2v;
-        decode_rename_in.valid             = 1;
-        decode_rename_in.cause             = EXCEPT_NONE;
-        branch_mispredict = 0;
-        commit_valid      = 0;
+        decode_rename_in.r_src1             = i_src1;
+        decode_rename_in.r_src2             = i_src2;
+        decode_rename_in.r_dst              = i_dst;
+        decode_rename_in.pc                 = i_pc;
+        decode_rename_in.src1_valid         = s1v;
+        decode_rename_in.src2_valid         = s2v;
+        decode_rename_in.except             = 0;
+        decode_rename_in.valid              = 1;
+        decode_rename_in.cause              = EXCEPT_NONE;
+        branch_mispredict   = 0;
+        commit_valid        = 0;
+        @(posedge clk);
+    endtask
+
+    task automatic drive_illegal_instr(
+        input [REG_ADDR_WIDTH-1:0] i_src1,
+        input [REG_ADDR_WIDTH-1:0] i_src2,
+        input [REG_ADDR_WIDTH-1:0] i_dst,
+        input [DATA_WIDTH-1:0]     i_pc,
+        input                      s1v,
+        input                      s2v
+    );
+        decode_rename_in.r_src1             = i_src1;
+        decode_rename_in.r_src2             = i_src2;
+        decode_rename_in.r_dst              = i_dst;
+        decode_rename_in.pc                 = i_pc;
+        decode_rename_in.src1_valid         = s1v;
+        decode_rename_in.src2_valid         = s2v;
+        decode_rename_in.except             = 1;
+        decode_rename_in.valid              = 1;
+        decode_rename_in.cause              = EXCEPT_ILLEGAL_INST;
+        branch_mispredict   = 0;
+        commit_valid        = 0;
         @(posedge clk);
     endtask
 
@@ -151,6 +191,7 @@ module rename_unit_tb;
         decode_rename_in.src2_valid     = s2v;
         decode_rename_in.valid          = 1;
         decode_rename_in.cause          = EXCEPT_NONE;
+        decode_rename_in.except         = 0;  
         branch_mispredict   = 0;
         commit_valid        = 1;
         commit_rd           = c_rd;
@@ -227,6 +268,15 @@ module rename_unit_tb;
         check_tag(rename_dispatch_out.p_src2,  6'd4,   "T1C2: p_src2=p4");
         check_tag(rename_dispatch_out.old_p_dest, 6'd5, "T1C2: old_p_dest=p5 (original x5 mapping)");
         check_pc(rename_dispatch_out.pc,    32'h104,  "T1C2: pc passthrough");
+
+        drive_illegal_instr(5'd3, 5'd4, 5'd5, 32'h104, 1, 1);
+        @(negedge clk);
+        check(rename_dispatch_out.valid,    1'b1,   "T1C3: valid");
+        check_tag(rename_dispatch_out.p_dest,  6'd0,  "T1C3: p_dest=p0");
+        check_tag(rename_dispatch_out.p_src1,  6'd0,  "T1C3: p_src1=p0 (no allocation)");
+        check_tag(rename_dispatch_out.p_src2,  6'd0,   "T1C3: p_src2=p0");
+        check_tag(rename_dispatch_out.old_p_dest, 6'd0, "T1C3: old_p_dest=p0 (skip entirely)");
+        check_pc(rename_dispatch_out.pc,    32'h104,  "T1C3: pc passthrough");
     endtask
     
 
@@ -558,6 +608,7 @@ module rename_unit_tb;
         check(rename_stall,              1'b0, "T10: no stall after free list refilled");
         // The first freed register (p1, old mapping of first commit) should be at head
         check_tag(rename_dispatch_out.p_dest, 6'd1, "T10: first reallocation after wraparound gets p1");
+        $display("T10: p_dest after wraparound = p%0d", rename_dispatch_out.p_dest);
     endtask
 
     // ========================================================
@@ -679,6 +730,32 @@ module rename_unit_tb;
         check_tag(rename_dispatch_out.p_dest, 6'd35, "T14: p35 allocated (arch head advanced past 3 commits)");
     endtask
 
+    task test_stall_on_illegal_instr();
+        $display("\n=== TEST 15: Stall skip on illegal instruction ===");
+        apply_reset();
+
+        // Exhaust the free list, 32 entries available at reset
+        // Use different dst regs to avoid WAW complications here
+        // x1..x31 and loop back,  just need 32 allocations
+        for (int i = 1; i <= 31; i++) begin
+            drive_instr(5'd0, 5'd0, i[4:0], 32'h0, 0, 0);
+        end
+        // One more to get the 32nd
+        drive_instr(5'd0, 5'd0, 5'd1, 32'h0, 0, 0);
+
+        // Now free list should be empty,next illegal instruction must not stall
+        @(negedge clk);
+        drive_illegal_instr(5'd21, 5'd19, 5'd12, 32'hDEAD, 1,1);
+        @(negedge clk);
+        check(rename_stall,                  1'b0, "T15: rename_stall low when free list empty, but instruction illegal");
+        check(rename_dispatch_out.valid,     1'b1, "T15: valid=1 when stalling, but instruction illegal");
+
+        // Now commit one instruction to free a physical register back
+        // p32 was the first one allocated (for x1), old mapping was p1
+        @(posedge clk);
+        @(posedge clk);
+    endtask
+    
     // ========================================================
     // Main
     // ========================================================
@@ -704,6 +781,7 @@ module rename_unit_tb;
         test_passthrough_fields();
         test_idle_bubbles();
         test_back_to_back_commits();
+        test_stall_on_illegal_instr();
 
         $display("\n=====================================================");
         $display("  CHECKS RUN : %0d", test_count + error_count);
