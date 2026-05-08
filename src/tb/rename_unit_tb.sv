@@ -389,7 +389,7 @@ module rename_unit_tb;
         drive_instr(5'd0, 5'd0, 5'd1, 32'h0, 0, 0);
 
         // Now free list should be empty,next instruction must stall
-        @(negedge clk);
+        @(negedge clk)
         // Drive instruction that needs allocation
 
         decode_rename_in.r_src1      = 5'd1;
@@ -616,13 +616,11 @@ module rename_unit_tb;
     // Rename a write to every x1..x31, verify each gets a
     // unique physical register and map table is fully populated
     // ========================================================
-    task automatic test_all_arch_registers();
+        task automatic test_all_arch_registers();
         logic [TAG_WIDTH-1:0] phys_map [31:0];
-        logic saw_duplicate;
         $display("\n=== TEST 11: All architectural registers renamed ===");
         apply_reset();
 
-        // Rename write to x1..x31
         for (int i = 1; i <= 31; i++) begin
             drive_instr(5'd0, 5'd0, i[4:0], i * 4, 0, 0);
             @(negedge clk);
@@ -631,23 +629,22 @@ module rename_unit_tb;
                 $sformatf("T11: x%0d rename valid", i));
         end
 
-        // Check all physical tags are unique
-        saw_duplicate = 0;
+        // FIX: count every pairwise comparison as its own check
         for (int i = 1; i <= 31; i++) begin
             for (int j = i+1; j <= 31; j++) begin
-                if (phys_map[i] === phys_map[j]) begin
-                    report_error($sformatf("T11: x%0d and x%0d got same physical tag p%0d", i, j, phys_map[i]));
-                    saw_duplicate = 1;
-                end
+                if (phys_map[i] === phys_map[j])
+                    report_error($sformatf(
+                        "T11: x%0d and x%0d got same physical tag p%0d",
+                        i, j, phys_map[i]));
+                else
+                    report_pass($sformatf(
+                        "T11: x%0d (p%0d) != x%0d (p%0d) unique",
+                        i, phys_map[i], j, phys_map[j]));
             end
         end
-        if (!saw_duplicate)
-            report_pass("T11: all 31 architectural registers got unique physical tags");
 
-        // Now read back all of them ,  verify map table consistency
         for (int i = 1; i <= 31; i++) begin
             drive_instr(i[4:0], 5'd0, 5'd0, 32'h0, 1, 0);
-            // Note: dst=x0 so no allocation, we're just probing src mapping
             @(negedge clk);
             check_tag(rename_dispatch_out.p_src1, phys_map[i],
                 $sformatf("T11: readback x%0d -> p%0d", i, phys_map[i]));
@@ -730,7 +727,7 @@ module rename_unit_tb;
         check_tag(rename_dispatch_out.p_dest, 6'd35, "T14: p35 allocated (arch head advanced past 3 commits)");
     endtask
 
-    task test_stall_on_illegal_instr();
+    task automatic test_stall_on_illegal_instr();
         $display("\n=== TEST 15: Stall skip on illegal instruction ===");
         apply_reset();
 
