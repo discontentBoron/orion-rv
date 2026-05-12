@@ -109,4 +109,33 @@ package orion_pkg;
         func_unit_type_e            func_unit_type;
         exec_unit_opcode_e          exec_unit_uop;
     }   rename_dispatch_pkt_s;
+    typedef struct packed {
+
+    logic valid;
+
+    logic [TAG_WIDTH-1:0] p_src1;
+    logic [TAG_WIDTH-1:0] p_src2;
+    logic [TAG_WIDTH-1:0] p_dest;
+    logic [TAG_WIDTH-1:0] old_p_dest;
+
+    logic p_src1_valid;
+    logic p_src2_valid;
+
+    logic reg_we;
+
+    logic [DATA_WIDTH-1:0] pc;
+    logic [DATA_WIDTH-1:0] predicted_pc;
+    logic [DATA_WIDTH-1:0] imm_val;
+
+    instr_class_e instr_class;
+    func_unit_type_e func_unit_type;
+    exec_unit_opcode_e exec_unit_uop;
+
+    except_cause_e cause;
+    logic except;
+
+    logic [DATA_WIDTH-1:0] src1_data;
+    logic [DATA_WIDTH-1:0] src2_data;
+
+} regread_execute_pkt_s;
 endpackage
