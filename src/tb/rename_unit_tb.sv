@@ -99,7 +99,7 @@ module rename_unit_tb;
         decode_rename_in.src1_valid     = 0;
         decode_rename_in.src2_valid     = 0;
         decode_rename_in.valid          = 0;
-        decode_rename_in.cause          = EXCEPT_NONE;
+        decode_rename_in.except_cause          = EXCEPT_NONE;
         branch_mispredict   = 0;
         commit_valid        = 0;
         commit_rd           = 0;
@@ -125,7 +125,7 @@ module rename_unit_tb;
         decode_rename_in.src1_valid        = s1v;
         decode_rename_in.src2_valid        = s2v;
         decode_rename_in.valid             = 1;
-        decode_rename_in.cause             = EXCEPT_NONE;
+        decode_rename_in.except_cause             = EXCEPT_NONE;
         branch_mispredict = 0;
         commit_valid      = 0;
         @(posedge clk);
@@ -150,7 +150,7 @@ module rename_unit_tb;
         decode_rename_in.src1_valid     = s1v;
         decode_rename_in.src2_valid     = s2v;
         decode_rename_in.valid          = 1;
-        decode_rename_in.cause          = EXCEPT_NONE;
+        decode_rename_in.except_cause          = EXCEPT_NONE;
         branch_mispredict   = 0;
         commit_valid        = 1;
         commit_rd           = c_rd;
@@ -349,7 +349,7 @@ module rename_unit_tb;
         decode_rename_in.src1_valid  = 1;
         decode_rename_in.src2_valid  = 1;
         decode_rename_in.valid = 1;
-        decode_rename_in.cause       = EXCEPT_NONE;
+        decode_rename_in.except_cause       = EXCEPT_NONE;
         branch_mispredict = 0;
         commit_valid      = 0;
         @(negedge clk);
@@ -604,7 +604,7 @@ module rename_unit_tb;
     endtask
 
     // ========================================================
-    // TEST 12: PC and cause passthrough
+    // TEST 12: PC and except_cause passthrough
     // Verify non-register fields travel correctly
     // ========================================================
     task automatic test_passthrough_fields();
@@ -614,7 +614,7 @@ module rename_unit_tb;
         drive_instr(5'd1, 5'd2, 5'd3, 32'hDEADBEEF, 1, 1);
         @(negedge clk);
         check_pc(rename_dispatch_out.pc, 32'hDEADBEEF, "T12: PC passthrough");
-        check(rename_dispatch_out.cause, EXCEPT_NONE, "T12: cause=EXCEPT_NONE passthrough");
+        check(rename_dispatch_out.except_cause, EXCEPT_NONE, "T12: cause=EXCEPT_NONE passthrough");
         check(rename_dispatch_out.except, 1'b0,       "T12: except=0 for normal instr");
 
         drive_instr(5'd1, 5'd2, 5'd4, 32'hCAFEBABE, 1, 1);

@@ -52,13 +52,13 @@ module rename_unit(
                 rename_dispatch_out.pc      <= 'bx;
                 rename_dispatch_out.except  <= 1'b0;
                 rename_dispatch_out.reg_we  <= 1'b0;
-                rename_dispatch_out.cause   <= decode_rename_in.cause;
+                rename_dispatch_out.except_cause   <= decode_rename_in.except_cause;
                 rename_dispatch_out.p_dest  <= 'bx;
                 rename_dispatch_out.p_src1_valid    <=  1'b0;
                 rename_dispatch_out.p_src2_valid    <=  1'b0;
                 rename_dispatch_out.p_src1  <=  'bx;
                 rename_dispatch_out.p_src2  <=  'bx;
-            end else if (decode_rename_in.valid && (decode_rename_in.cause==EXCEPT_NONE) && ~free_list_empty) begin
+            end else if (decode_rename_in.valid && (decode_rename_in.except_cause==EXCEPT_NONE) && ~free_list_empty) begin
                 case(r_dst_zero)
                     1'b0: begin
                         spec_reg_map[decode_rename_in.r_dst]         <=  phy_dst;
@@ -67,7 +67,7 @@ module rename_unit(
                         rename_dispatch_out.pc      <=  decode_rename_in.pc;
                         rename_dispatch_out.except  <=  decode_rename_in.except;
                         rename_dispatch_out.reg_we  <=  1'b1;
-                        rename_dispatch_out.cause   <=  decode_rename_in.cause;
+                        rename_dispatch_out.except_cause   <=  decode_rename_in.except_cause;
                         rename_dispatch_out.p_dest  <=  phy_dst;
                         rename_dispatch_out.p_src1  <=  phy_src1;
                         rename_dispatch_out.p_src2  <=  phy_src2; 
@@ -86,7 +86,7 @@ module rename_unit(
                         rename_dispatch_out.pc      <=  decode_rename_in.pc;
                         rename_dispatch_out.except  <=  decode_rename_in.except;
                         rename_dispatch_out.reg_we  <=  1'b0;
-                        rename_dispatch_out.cause   <=  decode_rename_in.cause;
+                        rename_dispatch_out.except_cause   <=  decode_rename_in.except_cause;
                         rename_dispatch_out.p_dest  <=  'b0;
                         rename_dispatch_out.p_src1  <=  phy_src1;
                         rename_dispatch_out.p_src2  <=  phy_src2; 
@@ -104,7 +104,7 @@ module rename_unit(
                         rename_dispatch_out.pc      <= decode_rename_in.pc;
                         rename_dispatch_out.except  <= 1'b0;
                         rename_dispatch_out.reg_we  <= 1'b0;
-                        rename_dispatch_out.cause   <= decode_rename_in.cause;
+                        rename_dispatch_out.except_cause   <= decode_rename_in.except_cause;
                         rename_dispatch_out.p_dest  <= 32'bx;
                         rename_dispatch_out.p_src1_valid    <=  1'b0;
                         rename_dispatch_out.p_src2_valid    <=  1'b0;
@@ -124,7 +124,7 @@ module rename_unit(
                 rename_dispatch_out.pc      <= decode_rename_in.pc;
                 rename_dispatch_out.except  <= 1'b0;
                 rename_dispatch_out.reg_we  <= 1'b0;
-                rename_dispatch_out.cause   <= decode_rename_in.cause;
+                rename_dispatch_out.except_cause   <= decode_rename_in.except_cause;
                 rename_dispatch_out.p_dest  <= 'bx;
                 rename_dispatch_out.p_src1_valid    <=  1'b0;
                 rename_dispatch_out.p_src2_valid    <=  1'b0;

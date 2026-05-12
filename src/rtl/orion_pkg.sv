@@ -6,6 +6,8 @@ package orion_pkg;
     parameter TAG_WIDTH         =   $clog2(PHY_REGS);
     parameter DATA_WIDTH        =   32;
     parameter ROB_SIZE          =   32;
+    parameter ROB_PTR           =   $clog2(ROB_SIZE);
+    
     typedef enum logic [1:0]{
         EXCEPT_NONE         = 2'b00,
         EXCEPT_ILLEGAL_INST = 2'b10
@@ -85,7 +87,7 @@ package orion_pkg;
         logic   [REG_ADDR_WIDTH-1:0]    r_src1;
         logic   [REG_ADDR_WIDTH-1:0]    r_src2;
         logic                       except;
-        except_cause_e              cause;
+        except_cause_e              except_cause;
         instr_class_e               instr_class;
         func_unit_type_e            func_unit_type;
         exec_unit_opcode_e          exec_unit_uop;
@@ -104,9 +106,23 @@ package orion_pkg;
         logic   [DATA_WIDTH-1:0]    pc;
         logic   [DATA_WIDTH-1:0]    imm_val;
         logic   [DATA_WIDTH-1:0]    predicted_pc;
-        except_cause_e              cause;
+        except_cause_e              except_cause;
         instr_class_e               instr_class;
         func_unit_type_e            func_unit_type;
         exec_unit_opcode_e          exec_unit_uop;
     }   rename_dispatch_pkt_s;
+
+    typedef struct packed {
+        logic [DATA_WIDTH-1:0]      pc;
+        logic [DATA_WIDTH-1:0]      predicted_pc;
+        logic [REG_ADDR_WIDTH-1:0]  r_dst;
+        logic [TAG_WIDTH-1:0]       p_dest;
+        logic [TAG_WIDTH-1:0]       old_p_dest;
+        instr_class_e               instr_class;
+        except_cause_e              except_cause;
+        logic                       except;
+        logic                       reg_we;
+        logic                       done;
+        logic                       mispredict;
+    } rob_entry_s;
 endpackage
