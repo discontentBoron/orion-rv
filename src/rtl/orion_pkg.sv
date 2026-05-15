@@ -6,6 +6,10 @@ package orion_pkg;
     parameter TAG_WIDTH         =   $clog2(PHY_REGS);
     parameter DATA_WIDTH        =   32;
     parameter ROB_SIZE          =   32;
+    parameter ROB_PTR           =   $clog2(ROB_SIZE);
+    parameter IQ_SIZE           =   16;
+    parameter IQ_AGE_WIDTH      =   8;
+
     typedef enum logic [1:0]{
         EXCEPT_NONE         = 2'b00,
         EXCEPT_ILLEGAL_INST = 2'b10
@@ -26,42 +30,12 @@ package orion_pkg;
         FU_LSU
     }   func_unit_type_e;
     typedef enum logic[5:0]{
-        LUI,
-        AUIPC,
-        JAL,
-        JALR,
-        BEQ,
-        BNE,
-        BLT,
-        BGE,
-        BLTU,
-        BGEU,
-        LB,
-        LH,
-        LW,
-        LBU,
-        LHU,
-        SB,
-        SH,
-        SW,
-        ADD, 
-        SUB,
-        SLL,
-        SLT,
-        SLTU,
-        XOR,
-        SRL,
-        SRA,
-        OR, 
-        AND,
-        MUL,
-        MULH,
-        MULHSU,
-        MULHU,
-        DIV,
-        DIVU,
-        REM, 
-        REMU
+        LUI,    AUIPC,  JAL,    JALR,   BEQ,    BNE,
+        BLT,    BGE,    BLTU,   BGEU,   LB,     LH,
+        LW,     LBU,    LHU,    SB,     SH,     SW,
+        ADD,    SUB,    SLL,    SLT,    SLTU,   XOR,
+        SRL,    SRA,    OR,     AND,    MUL,    MULH,
+        MULHSU, MULHU,  DIV,    DIVU,   REM,    REMU
     }   exec_unit_opcode_e;
 
     typedef enum logic[2:0]{
@@ -85,7 +59,7 @@ package orion_pkg;
         logic   [REG_ADDR_WIDTH-1:0]    r_src1;
         logic   [REG_ADDR_WIDTH-1:0]    r_src2;
         logic                       except;
-        except_cause_e              cause;
+        except_cause_e              except_cause;
         instr_class_e               instr_class;
         func_unit_type_e            func_unit_type;
         exec_unit_opcode_e          exec_unit_uop;
@@ -98,15 +72,38 @@ package orion_pkg;
         logic [TAG_WIDTH-1:0]   p_src2;
         logic                   p_src1_valid;
         logic                   p_src2_valid;
+        logic                   p_src1_rdy;
+        logic                   p_src2_rdy;
         logic                   valid;
         logic                   reg_we;
         logic                   except;
         logic   [DATA_WIDTH-1:0]    pc;
         logic   [DATA_WIDTH-1:0]    imm_val;
         logic   [DATA_WIDTH-1:0]    predicted_pc;
-        except_cause_e              cause;
+        except_cause_e              except_cause;
         instr_class_e               instr_class;
         func_unit_type_e            func_unit_type;
         exec_unit_opcode_e          exec_unit_uop;
     }   rename_dispatch_pkt_s;
+
+    typedef struct packed {
+        logic [TAG_WIDTH-1:0]       p_src1;
+        logic [TAG_WIDTH-1:0]       p_src2;
+        logic                       p_src1_ready;
+        logic                       p_src2_ready;
+        logic [TAG_WIDTH-1:0]       p_dest;
+        logic [TAG_WIDTH-1:0]       old_p_dest;
+        logic [ROB_PTR-1:0]         rob_tag;
+        logic                       reg_we;
+        logic                       except;
+        except_cause_e              except_cause;
+        instr_class_e               instr_class;
+        func_unit_type_e            func_unit_type;
+        exec_unit_opcode_e          exec_unit_uop;
+        logic [DATA_WIDTH-1:0]      imm_val;
+        logic [DATA_WIDTH-1:0]      pc;
+        logic [DATA_WIDTH-1:0]      predicted_pc;
+        logic                       valid;
+        logic [IQ_AGE_WIDTH-1:0]    age_tag;
+    } iq_entry_s;
 endpackage
