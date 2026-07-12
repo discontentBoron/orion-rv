@@ -63,11 +63,11 @@ syn_opt
 # Report generation
 puts "INFO: Writing reports..."
 
-report_timing -num_paths 10   > $SYN_DIR/timing.rpt
-report_area                   > $SYN_DIR/area.rpt
-report_power -effort low      > $SYN_DIR/power.rpt
-report_qor                    > $SYN_DIR/qor.rpt
-check_design -all             > $SYN_DIR/check_design.rpt
+report_timing                   > $SYN_DIR/timing.rpt
+report_area                     > $SYN_DIR/area.rpt
+report_power                    > $SYN_DIR/power.rpt
+report_qor                      > $SYN_DIR/qor.rpt
+check_design -all               > $SYN_DIR/check_design.rpt
 
 # Design output
 puts "INFO: Writing outputs..."
@@ -75,7 +75,6 @@ set generic_filename    [file join $SYN_DIR ${DESIGN_NAME}_generic.v]
 set netlist_filename    [file join $SYN_DIR ${DESIGN_NAME}_netlist.v]
 set sdc_filename        [file join $SYN_DIR ${DESIGN_NAME}_syn.sdc]
 set db_file             [file join $SYN_DIR ${DESIGN_NAME}.db]
-write_hdl  -generic         > $generic_filename
 write_hdl                   > $netlist_filename
 write_sdc                   > $sdc_filename
 write_db                    $db_file    

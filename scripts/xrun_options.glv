@@ -1,0 +1,7 @@
+-gui
+-sv
+-debug
+-nospecify
+-timescale 1ns/1ps
+-define GATE_LEVEL
+-f ../inputs/orion_rv_src_list_glv.txt

@@ -26,6 +26,20 @@ module rename_unit_tb;
     // --------------------------------------------------------
     // DUT instantiation
     // --------------------------------------------------------
+    `ifdef GATE_LEVEL
+        rename_unit_wrapper dut (
+            .clk                (clk),
+            .rst_n              (rst_n),
+            .decode_rename_in   (decode_rename_in),
+            .branch_mispredict  (branch_mispredict),
+            .commit_valid       (commit_valid),
+            .commit_rd          (commit_rd),
+            .commit_pd          (commit_pd),
+            .commit_old_pd      (commit_old_pd),
+            .rename_stall       (rename_stall),
+            .rename_dispatch_out(rename_dispatch_out)
+        );
+    `else 
     rename_unit dut (
         .clk                (clk),
         .rst_n              (rst_n),
@@ -38,6 +52,8 @@ module rename_unit_tb;
         .rename_stall       (rename_stall),
         .rename_dispatch_out(rename_dispatch_out)
     );
+    `endif
+    
     initial clk = 0;
     always #5 clk = ~clk;
 
@@ -227,6 +243,15 @@ module rename_unit_tb;
         check_tag(rename_dispatch_out.p_src2,  6'd4,   "T1C2: p_src2=p4");
         check_tag(rename_dispatch_out.old_p_dest, 6'd5, "T1C2: old_p_dest=p5 (original x5 mapping)");
         check_pc(rename_dispatch_out.pc,    32'h104,  "T1C2: pc passthrough");
+
+        drive_illegal_instr(5'd3, 5'd4, 5'd5, 32'h104, 1, 1);
+        @(negedge clk);
+        check(rename_dispatch_out.valid,    1'b1,   "T1C3: valid");
+        check_tag(rename_dispatch_out.p_dest,  6'd0,  "T1C3: p_dest=p0");
+        check_tag(rename_dispatch_out.p_src1,  6'd0,  "T1C3: p_src1=p0 (no allocation)");
+        check_tag(rename_dispatch_out.p_src2,  6'd0,   "T1C3: p_src2=p0");
+        check_tag(rename_dispatch_out.old_p_dest, 6'd0, "T1C3: old_p_dest=p0 (skip entirely)");
+        check_pc(rename_dispatch_out.pc,    32'h104,  "T1C3: pc passthrough");
     endtask
     
 
@@ -339,7 +364,7 @@ module rename_unit_tb;
         drive_instr(5'd0, 5'd0, 5'd1, 32'h0, 0, 0);
 
         // Now free list should be empty,next instruction must stall
-        @(negedge clk);
+        @(negedge clk)
         // Drive instruction that needs allocation
 
         decode_rename_in.r_src1      = 5'd1;
@@ -558,6 +583,7 @@ module rename_unit_tb;
         check(rename_stall,              1'b0, "T10: no stall after free list refilled");
         // The first freed register (p1, old mapping of first commit) should be at head
         check_tag(rename_dispatch_out.p_dest, 6'd1, "T10: first reallocation after wraparound gets p1");
+        $display("T10: p_dest after wraparound = p%0d", rename_dispatch_out.p_dest);
     endtask
 
     // ========================================================
@@ -565,13 +591,11 @@ module rename_unit_tb;
     // Rename a write to every x1..x31, verify each gets a
     // unique physical register and map table is fully populated
     // ========================================================
-    task automatic test_all_arch_registers();
+        task automatic test_all_arch_registers();
         logic [TAG_WIDTH-1:0] phys_map [31:0];
-        logic saw_duplicate;
         $display("\n=== TEST 11: All architectural registers renamed ===");
         apply_reset();
 
-        // Rename write to x1..x31
         for (int i = 1; i <= 31; i++) begin
             drive_instr(5'd0, 5'd0, i[4:0], i * 4, 0, 0);
             @(negedge clk);
@@ -580,23 +604,22 @@ module rename_unit_tb;
                 $sformatf("T11: x%0d rename valid", i));
         end
 
-        // Check all physical tags are unique
-        saw_duplicate = 0;
+        // FIX: count every pairwise comparison as its own check
         for (int i = 1; i <= 31; i++) begin
             for (int j = i+1; j <= 31; j++) begin
-                if (phys_map[i] === phys_map[j]) begin
-                    report_error($sformatf("T11: x%0d and x%0d got same physical tag p%0d", i, j, phys_map[i]));
-                    saw_duplicate = 1;
-                end
+                if (phys_map[i] === phys_map[j])
+                    report_error($sformatf(
+                        "T11: x%0d and x%0d got same physical tag p%0d",
+                        i, j, phys_map[i]));
+                else
+                    report_pass($sformatf(
+                        "T11: x%0d (p%0d) != x%0d (p%0d) unique",
+                        i, phys_map[i], j, phys_map[j]));
             end
         end
-        if (!saw_duplicate)
-            report_pass("T11: all 31 architectural registers got unique physical tags");
 
-        // Now read back all of them ,  verify map table consistency
         for (int i = 1; i <= 31; i++) begin
             drive_instr(i[4:0], 5'd0, 5'd0, 32'h0, 1, 0);
-            // Note: dst=x0 so no allocation, we're just probing src mapping
             @(negedge clk);
             check_tag(rename_dispatch_out.p_src1, phys_map[i],
                 $sformatf("T11: readback x%0d -> p%0d", i, phys_map[i]));
@@ -679,6 +702,32 @@ module rename_unit_tb;
         check_tag(rename_dispatch_out.p_dest, 6'd35, "T14: p35 allocated (arch head advanced past 3 commits)");
     endtask
 
+    task automatic test_stall_on_illegal_instr();
+        $display("\n=== TEST 15: Stall skip on illegal instruction ===");
+        apply_reset();
+
+        // Exhaust the free list, 32 entries available at reset
+        // Use different dst regs to avoid WAW complications here
+        // x1..x31 and loop back,  just need 32 allocations
+        for (int i = 1; i <= 31; i++) begin
+            drive_instr(5'd0, 5'd0, i[4:0], 32'h0, 0, 0);
+        end
+        // One more to get the 32nd
+        drive_instr(5'd0, 5'd0, 5'd1, 32'h0, 0, 0);
+
+        // Now free list should be empty,next illegal instruction must not stall
+        @(negedge clk);
+        drive_illegal_instr(5'd21, 5'd19, 5'd12, 32'hDEAD, 1,1);
+        @(negedge clk);
+        check(rename_stall,                  1'b0, "T15: rename_stall low when free list empty, but instruction illegal");
+        check(rename_dispatch_out.valid,     1'b1, "T15: valid=1 when stalling, but instruction illegal");
+
+        // Now commit one instruction to free a physical register back
+        // p32 was the first one allocated (for x1), old mapping was p1
+        @(posedge clk);
+        @(posedge clk);
+    endtask
+    
     // ========================================================
     // Main
     // ========================================================
@@ -704,6 +753,7 @@ module rename_unit_tb;
         test_passthrough_fields();
         test_idle_bubbles();
         test_back_to_back_commits();
+        test_stall_on_illegal_instr();
 
         $display("\n=====================================================");
         $display("  CHECKS RUN : %0d", test_count + error_count);

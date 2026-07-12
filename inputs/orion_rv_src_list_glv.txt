@@ -1,0 +1,19 @@
+// Include Directories
+
++incdir+../rtl
++incdir+../sram
+
+
+// Packages
+../src/rtl/orion_pkg.sv
+
+// SRAM Models
+//../sram/sram_model.v
+
+//Verilog stdcell Models
+../pdk/Nangate45/NangateOpenCellLibrary_PDKv1_3_v2010_12/Front_End/Verilog/NangateOpenCellLibrary.v
+
+// RTL Source
+../syn/rename_unit/rename_unit_netlist.v
+
+
