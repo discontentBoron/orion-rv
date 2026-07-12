@@ -13,6 +13,7 @@
 // RTL Source
 /* rtl files here */
 ../src/rtl/rename_unit.sv
+../src/rtl/reorder_buffer.sv
 
 
 ../src/rtl/register_read.sv
