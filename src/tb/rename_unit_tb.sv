@@ -116,7 +116,7 @@ module rename_unit_tb;
         decode_rename_in.src2_valid     = 0;
         decode_rename_in.valid          = 0;
         decode_rename_in.except         = 0;
-        decode_rename_in.except_cause          = EXCEPT_NONE;
+        decode_rename_in.except_cause   = EXCEPT_NONE;
         branch_mispredict   = 0;
         commit_valid        = 0;
         commit_rd           = 0;
@@ -143,7 +143,7 @@ module rename_unit_tb;
         decode_rename_in.src2_valid         = s2v;
         decode_rename_in.except             = 0;
         decode_rename_in.valid              = 1;
-        decode_rename_in.except_cause              = EXCEPT_NONE;
+        decode_rename_in.except_cause       = EXCEPT_NONE;
         branch_mispredict   = 0;
         commit_valid        = 0;
         @(posedge clk);
@@ -165,7 +165,7 @@ module rename_unit_tb;
         decode_rename_in.src2_valid         = s2v;
         decode_rename_in.except             = 1;
         decode_rename_in.valid              = 1;
-        decode_rename_in.except_cause              = EXCEPT_ILLEGAL_INST;
+        decode_rename_in.except_cause       = EXCEPT_ILLEGAL_INST;
         branch_mispredict   = 0;
         commit_valid        = 0;
         @(posedge clk);
@@ -652,7 +652,7 @@ module rename_unit_tb;
     endtask
 
     // ========================================================
-    // TEST 12: PC and cause passthrough
+    // TEST 12: PC and except_cause passthrough
     // Verify non-register fields travel correctly
     // ========================================================
     task automatic test_passthrough_fields();

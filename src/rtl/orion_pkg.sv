@@ -30,42 +30,17 @@ package orion_pkg;
     FU_LSU
   } func_unit_type_e;
   typedef enum logic [5:0] {
-    LUI,
-    AUIPC,
-    JAL,
-    JALR,
-    BEQ,
-    BNE,
-    BLT,
-    BGE,
-    BLTU,
-    BGEU,
-    LB,
-    LH,
-    LW,
-    LBU,
-    LHU,
-    SB,
-    SH,
-    SW,
-    ADD,
-    SUB,
-    SLL,
-    SLT,
-    SLTU,
-    XOR,
-    SRL,
-    SRA,
-    OR,
-    AND,
-    MUL,
-    MULH,
-    MULHSU,
-    MULHU,
-    DIV,
-    DIVU,
-    REM,
-    REMU
+    LUI, AUIPC, 
+    JAL, JALR,
+    BEQ, BNE, BLT, BGE, BLTU, BGEU,
+    LB, LH, LW, LBU, LHU,
+    SB, SH,SW,
+    ADD, SUB,
+    SLL, SLT, SLTU,
+    XOR, SRL, SRA,
+    OR, AND,
+    MUL,MULH, MULHSU, MULHU,
+    DIV, DIVU, REM, REMU
   } exec_unit_opcode_e;
 
   typedef enum logic [2:0] {
@@ -157,5 +132,19 @@ package orion_pkg;
     logic [DATA_WIDTH-1:0] src1_data;
     logic [DATA_WIDTH-1:0] src2_data;
   } regread_execute_pkt_s;
+  
+  typedef struct packed {
+        logic [DATA_WIDTH-1:0]      pc;
+        logic [DATA_WIDTH-1:0]      predicted_pc;
+        logic [REG_ADDR_WIDTH-1:0]  r_dst;
+        logic [TAG_WIDTH-1:0]       p_dest;
+        logic [TAG_WIDTH-1:0]       old_p_dest;
+        instr_class_e               instr_class;
+        except_cause_e              except_cause;
+        logic                       except;
+        logic                       reg_we;
+        logic                       done;
+        logic                       mispredict;
+  } rob_entry_s;
 
 endpackage
