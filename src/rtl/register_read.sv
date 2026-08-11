@@ -134,7 +134,7 @@ always_ff @(posedge clk or negedge rst_n) begin
         execute_out.instr_class     <= dispatch_in.instr_class;
         execute_out.func_unit_type  <= dispatch_in.func_unit_type;
         execute_out.exec_unit_uop   <= dispatch_in.exec_unit_uop;
-        execute_out.cause           <= dispatch_in.cause;
+        execute_out.cause           <= dispatch_in.except_cause;
         execute_out.except          <= dispatch_in.except;
 
         // Computed data fields
