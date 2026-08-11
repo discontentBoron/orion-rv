@@ -1,178 +1,184 @@
-`timescale 1ns/1ps
+`timescale 1ns / 1ps
 import orion_pkg::*;
-module rename_unit(
-    input   logic                       clk,
-    input   logic                       rst_n,
-    input   var decode_rename_pkt_s     decode_rename_in,
-    input   logic                       branch_mispredict,
-    input   logic                       cdb_valid,
-    input   logic [TAG_WIDTH-1:0]       cdb_p_dest,
-    input   logic                       commit_valid,       //Instruction retired by ROB
+module rename_unit (
+    input logic clk,
+    input logic rst_n,
+    input var decode_rename_pkt_s decode_rename_in,
+    input logic branch_mispredict,
+    input logic cdb_valid,
+    input logic [TAG_WIDTH-1:0] cdb_p_dest,
+    input logic commit_valid,  //Instruction retired by ROB
     input   logic [REG_ADDR_WIDTH-1:0]  commit_rd,          //The arch. register which should hold the arch. state
-    input   logic [TAG_WIDTH-1:0]       commit_pd,          //The phy. register which actually holds the data
+    input logic [TAG_WIDTH-1:0] commit_pd,  //The phy. register which actually holds the data
     input   logic [TAG_WIDTH-1:0]       commit_old_pd,      //The old phy. register before renaming, to release back to free list
-    output  logic                       rename_stall,
-    output  rename_dispatch_pkt_s       rename_dispatch_out 
+    output logic rename_stall,
+    output rename_dispatch_pkt_s rename_dispatch_out
 );
-    logic   [TAG_WIDTH-1:0] phy_dst;
-    logic   [TAG_WIDTH-1:0] phy_src1;
-    logic   [TAG_WIDTH-1:0] phy_src2;
-    logic   [PHY_REGS-1:0]  prrt;
-    logic   [TAG_WIDTH-1:0] free_list   [PHY_REGS-1:0];
-    logic   [TAG_WIDTH-1:0] spec_reg_map [ARCH_REGS-1:0];
-    logic   [TAG_WIDTH-1:0] arch_reg_map [ARCH_REGS-1:0];
-    logic   [TAG_WIDTH:0]   free_list_head;
-    logic   [TAG_WIDTH:0]   free_list_head_arch;
-    logic   [TAG_WIDTH:0]   free_list_tail; 
-    logic   [TAG_WIDTH-1:0]    old_p_dest;
-    logic   free_list_full;
-    logic   free_list_empty;
-    logic   is_r_dst_zero;
-    assign  is_r_dst_zero = (decode_rename_in.r_dst == 0);
-    assign  free_list_empty =   (free_list_head == free_list_tail);
-    assign  free_list_full = (free_list_head[TAG_WIDTH] != free_list_tail[TAG_WIDTH]) && (free_list_head[TAG_WIDTH-1:0] == free_list_tail[TAG_WIDTH-1:0]);
-    always_ff @(posedge clk) begin
-        if (~rst_n) begin
-            rename_dispatch_out <= 'b0;
-            for (int i = 0; i <= ARCH_REGS - 1; i++) begin
-                free_list[i]    <= i + PHY_REGS/2;
-                prrt[i]         <= 1'b1;
-            end
-            for (int i = ARCH_REGS; i <= PHY_REGS - 1; i++) begin
-                free_list[i]    <= 'b0;
-                prrt[i]         <= 1'b0;
-            end
-            free_list_head_arch <= 7'd0;
-            free_list_head  <=  7'd0;
-            free_list_tail  <=  7'd32;
-            // Unity mapping
-            for (int i = 0; i <= ARCH_REGS-1; i++) begin
-                arch_reg_map[i] <= i;
-                spec_reg_map[i] <= i;
-            end
-        end 
-        else begin
-            rename_dispatch_out.pc              <=  decode_rename_in.pc;
-            rename_dispatch_out.except_cause    <=  decode_rename_in.except_cause;
-            rename_dispatch_out.imm_val         <=  decode_rename_in.imm_val;
-            rename_dispatch_out.instr_class     <=  decode_rename_in.instr_class;
-            rename_dispatch_out.predicted_pc    <=  decode_rename_in.predicted_pc;
-            rename_dispatch_out.exec_unit_uop   <=  decode_rename_in.exec_unit_uop;
-            rename_dispatch_out.func_unit_type  <=  decode_rename_in.func_unit_type;
-            
-            if (branch_mispredict) begin
-                spec_reg_map    <=  arch_reg_map;
-                free_list_head  <=  free_list_head_arch;
-                rename_dispatch_out.old_p_dest  <= 'bx;
-                rename_dispatch_out.valid   <= 1'b0;
-                rename_dispatch_out.pc      <= 'bx;
-                rename_dispatch_out.except  <= 1'b0;
-                rename_dispatch_out.reg_we  <= 1'b0;
-                rename_dispatch_out.p_dest  <= 'bx;
-                rename_dispatch_out.p_src1_valid    <=  1'b0;
-                rename_dispatch_out.p_src2_valid    <=  1'b0;
-                rename_dispatch_out.p_src1  <=  'bx;
-                rename_dispatch_out.p_src2  <=  'bx;
-                prrt                        <=  '0;
-                for (int i = 0; i < ARCH_REGS; i++) prrt[arch_reg_map[i]] <= 1'b1;
-            end else if (decode_rename_in.valid) begin
-                if (decode_rename_in.except_cause != EXCEPT_NONE) begin
-                    rename_dispatch_out.valid   <=  1'b1;
-                    rename_dispatch_out.except  <=  decode_rename_in.except;
-                    rename_dispatch_out.reg_we  <=  1'b0;
-                    rename_dispatch_out.p_dest  <=  1'b0;
-                    rename_dispatch_out.p_src1  <=  'b0;
-                    rename_dispatch_out.p_src2  <=  'b0; 
-                    rename_dispatch_out.p_src1_valid    <=  1'b0;
-                    rename_dispatch_out.p_src2_valid    <=  1'b0;
-                    rename_dispatch_out.old_p_dest      <=  'b0;
-                end else if(is_r_dst_zero) begin
-                    rename_dispatch_out.valid   <=  1'b1;
-                    free_list_head              <=  free_list_head;
-                    rename_dispatch_out.except  <=  decode_rename_in.except;
-                    rename_dispatch_out.reg_we  <=  1'b0;
-                    rename_dispatch_out.p_dest  <=  'b0;
-                    rename_dispatch_out.p_src1  <=  phy_src1;
-                    rename_dispatch_out.p_src2  <=  phy_src2; 
-                    rename_dispatch_out.p_src1_valid    <=  decode_rename_in.src1_valid;
-                    rename_dispatch_out.p_src2_valid    <=  decode_rename_in.src2_valid;
-                    rename_dispatch_out.old_p_dest      <=  'b0;
-                    rename_dispatch_out.p_src1_rdy      <= decode_rename_in.src1_valid ? prrt[phy_src1] : 1'b1;
-                    rename_dispatch_out.p_src2_rdy      <= decode_rename_in.src2_valid ? prrt[phy_src2] : 1'b1;
-                end else if(~free_list_empty) begin
-                    spec_reg_map[decode_rename_in.r_dst]         <=  phy_dst;
-                    free_list_head              <=  free_list_head + 1;
-                    rename_dispatch_out.valid   <=  1'b1;
-                    rename_dispatch_out.except  <=  decode_rename_in.except;
-                    rename_dispatch_out.reg_we  <=  1'b1;
-                    rename_dispatch_out.p_dest  <=  phy_dst;
-                    rename_dispatch_out.p_src1  <=  phy_src1;
-                    rename_dispatch_out.p_src2  <=  phy_src2; 
-                    prrt[phy_dst]               <=  1'b0;
-                    rename_dispatch_out.p_src1_valid    <=  decode_rename_in.src1_valid;
-                    rename_dispatch_out.p_src2_valid    <=  decode_rename_in.src2_valid;
-                    rename_dispatch_out.old_p_dest      <=  old_p_dest;
-                    rename_dispatch_out.p_src1_rdy      <= decode_rename_in.src1_valid ? prrt[phy_src1] : 1'b1;
-                    rename_dispatch_out.p_src2_rdy      <= decode_rename_in.src2_valid ? prrt[phy_src2] : 1'b1;
-                end else begin
-                    rename_dispatch_out.valid   <= 1'b0;
-                    rename_dispatch_out.except  <= 1'b0;
-                    rename_dispatch_out.reg_we  <= 1'b0;
-                    rename_dispatch_out.p_dest  <= 'bx;
-                    rename_dispatch_out.p_src1_valid    <=  1'b0;
-                    rename_dispatch_out.p_src2_valid    <=  1'b0;
-                    rename_dispatch_out.old_p_dest      <=  'bx;
-                    rename_dispatch_out.p_src1  <=  'bx;
-                    rename_dispatch_out.p_src2  <=  'bx;
-                end
-            end else begin
-                rename_dispatch_out.valid   <= 1'b0;
-                rename_dispatch_out.except  <= 1'b0;
-                rename_dispatch_out.reg_we  <= 1'b0;
-                rename_dispatch_out.except_cause   <= decode_rename_in.except_cause;
-                rename_dispatch_out.p_dest  <= 'bx;
-                rename_dispatch_out.p_src1_valid    <=  1'b0;
-                rename_dispatch_out.p_src2_valid    <=  1'b0;
-                rename_dispatch_out.old_p_dest      <=  'bx;
-                rename_dispatch_out.p_src1  <=  'bx;
-                rename_dispatch_out.p_src2  <=  'bx;
-            end
-            if (cdb_valid)
-                prrt[cdb_p_dest] <= 1'b1;
-            if(commit_valid) begin
-                arch_reg_map[commit_rd]         <=  commit_pd;
-                free_list_tail                  <=  (commit_rd != 0) ? free_list_tail + 1:free_list_tail;
-                free_list_head_arch             <=  (commit_rd != 0) ? free_list_head_arch + 1 : free_list_head_arch;
-                free_list[free_list_tail[TAG_WIDTH-1:0]]    <=  commit_old_pd;
-            end
+  logic   [TAG_WIDTH-1:0] phy_dst;
+  logic   [TAG_WIDTH-1:0] phy_src1;
+  logic   [TAG_WIDTH-1:0] phy_src2;
+  logic   [PHY_REGS-1:0]  prrt;
+  logic   [TAG_WIDTH-1:0] free_list   [PHY_REGS-1:0];
+  logic   [TAG_WIDTH-1:0] spec_reg_map [ARCH_REGS-1:0];
+  logic   [TAG_WIDTH-1:0] arch_reg_map [ARCH_REGS-1:0];
+  logic   [TAG_WIDTH:0]   free_list_head;
+  logic   [TAG_WIDTH:0]   free_list_head_arch;
+  logic   [TAG_WIDTH:0]   free_list_tail;
+  logic   [TAG_WIDTH-1:0]    old_p_dest;
+  logic   free_list_full;
+  logic   free_list_empty;
+  logic   is_r_dst_zero;
+  assign is_r_dst_zero = (decode_rename_in.r_dst == 0);
+  assign free_list_empty = (free_list_head == free_list_tail);
+  assign  free_list_full = (free_list_head[TAG_WIDTH] != free_list_tail[TAG_WIDTH]) && (free_list_head[TAG_WIDTH-1:0] == free_list_tail[TAG_WIDTH-1:0]);
+  always_ff @(posedge clk) begin
+    if (~rst_n) begin
+      rename_dispatch_out <= 'b0;
+      for (int i = 0; i <= ARCH_REGS - 1; i++) begin
+        free_list[i] <= i + PHY_REGS / 2;
+        prrt[i]      <= 1'b1;
+      end
+      for (int i = ARCH_REGS; i <= PHY_REGS - 1; i++) begin
+        free_list[i] <= 'b0;
+        prrt[i]      <= 1'b0;
+      end
+      free_list_head_arch <= 7'd0;
+      free_list_head <= 7'd0;
+      free_list_tail <= 7'd32;
+      // Unity mapping
+      for (int i = 0; i <= ARCH_REGS - 1; i++) begin
+        arch_reg_map[i] <= i;
+        spec_reg_map[i] <= i;
+      end
+    end else begin
+      rename_dispatch_out.pc             <= decode_rename_in.pc;
+      rename_dispatch_out.except_cause   <= decode_rename_in.except_cause;
+      rename_dispatch_out.imm_val        <= decode_rename_in.imm_val;
+      rename_dispatch_out.instr_class    <= decode_rename_in.instr_class;
+      rename_dispatch_out.predicted_pc   <= decode_rename_in.predicted_pc;
+      rename_dispatch_out.exec_unit_uop  <= decode_rename_in.exec_unit_uop;
+      rename_dispatch_out.func_unit_type <= decode_rename_in.func_unit_type;
+
+      if (branch_mispredict) begin
+        spec_reg_map                     <= arch_reg_map;
+        free_list_head                   <= free_list_head_arch;
+        rename_dispatch_out.old_p_dest   <= 'bx;
+        rename_dispatch_out.valid        <= 1'b0;
+        rename_dispatch_out.pc           <= 'bx;
+        rename_dispatch_out.except       <= 1'b0;
+        rename_dispatch_out.reg_we       <= 1'b0;
+        rename_dispatch_out.p_dest       <= 'bx;
+        rename_dispatch_out.p_src1_valid <= 1'b0;
+        rename_dispatch_out.p_src2_valid <= 1'b0;
+        rename_dispatch_out.p_src1       <= 'bx;
+        rename_dispatch_out.p_src2       <= 'bx;
+        prrt                             <= '0;
+        for (int i = 0; i < ARCH_REGS; i++) prrt[arch_reg_map[i]] <= 1'b1;
+      end else if (decode_rename_in.valid) begin
+        if (decode_rename_in.except_cause != EXCEPT_NONE) begin
+          rename_dispatch_out.valid        <= 1'b1;
+          rename_dispatch_out.except       <= decode_rename_in.except;
+          rename_dispatch_out.reg_we       <= 1'b0;
+          rename_dispatch_out.p_dest       <= 1'b0;
+          rename_dispatch_out.p_src1       <= 'b0;
+          rename_dispatch_out.p_src2       <= 'b0;
+          rename_dispatch_out.p_src1_valid <= 1'b0;
+          rename_dispatch_out.p_src2_valid <= 1'b0;
+          rename_dispatch_out.old_p_dest   <= 'b0;
+          rename_dispatch_out.p_src1_rdy   <= 1'b0;
+          rename_dispatch_out.p_src2_rdy   <= 1'b0;
+        end else if (is_r_dst_zero) begin
+          rename_dispatch_out.valid        <= 1'b1;
+          free_list_head                   <= free_list_head;
+          rename_dispatch_out.except       <= decode_rename_in.except;
+          rename_dispatch_out.reg_we       <= 1'b0;
+          rename_dispatch_out.p_dest       <= 'b0;
+          rename_dispatch_out.p_src1       <= phy_src1;
+          rename_dispatch_out.p_src2       <= phy_src2;
+          rename_dispatch_out.p_src1_valid <= decode_rename_in.src1_valid;
+          rename_dispatch_out.p_src2_valid <= decode_rename_in.src2_valid;
+          rename_dispatch_out.old_p_dest   <= 'b0;
+          rename_dispatch_out.p_src1_rdy   <= decode_rename_in.src1_valid ? prrt[phy_src1] : 1'b1;
+          rename_dispatch_out.p_src2_rdy   <= decode_rename_in.src2_valid ? prrt[phy_src2] : 1'b1;
+        end else if (~free_list_empty) begin
+          spec_reg_map[decode_rename_in.r_dst] <= phy_dst;
+          free_list_head <= free_list_head + 1;
+          rename_dispatch_out.valid <= 1'b1;
+          rename_dispatch_out.except <= decode_rename_in.except;
+          rename_dispatch_out.reg_we <= 1'b1;
+          rename_dispatch_out.p_dest <= phy_dst;
+          rename_dispatch_out.p_src1 <= phy_src1;
+          rename_dispatch_out.p_src2 <= phy_src2;
+          prrt[phy_dst] <= 1'b0;
+          rename_dispatch_out.p_src1_valid <= decode_rename_in.src1_valid;
+          rename_dispatch_out.p_src2_valid <= decode_rename_in.src2_valid;
+          rename_dispatch_out.old_p_dest <= old_p_dest;
+          rename_dispatch_out.p_src1_rdy <= decode_rename_in.src1_valid ? prrt[phy_src1] : 1'b1;
+          rename_dispatch_out.p_src2_rdy <= decode_rename_in.src2_valid ? prrt[phy_src2] : 1'b1;
+        end else begin
+          rename_dispatch_out.valid        <= 1'b0;
+          rename_dispatch_out.except       <= 1'b0;
+          rename_dispatch_out.reg_we       <= 1'b0;
+          rename_dispatch_out.p_dest       <= 'bx;
+          rename_dispatch_out.p_src1_valid <= 1'b0;
+          rename_dispatch_out.p_src2_valid <= 1'b0;
+          rename_dispatch_out.old_p_dest   <= 'bx;
+          rename_dispatch_out.p_src1       <= 'bx;
+          rename_dispatch_out.p_src2       <= 'bx;
+          rename_dispatch_out.p_src1_rdy   <= 'bx;
+          rename_dispatch_out.p_src2_rdy   <= 'bx;
         end
+      end else begin
+        rename_dispatch_out.valid        <= 1'b0;
+        rename_dispatch_out.except       <= 1'b0;
+        rename_dispatch_out.reg_we       <= 1'b0;
+        rename_dispatch_out.except_cause <= decode_rename_in.except_cause;
+        rename_dispatch_out.p_dest       <= 'bx;
+        rename_dispatch_out.p_src1_valid <= 1'b0;
+        rename_dispatch_out.p_src2_valid <= 1'b0;
+        rename_dispatch_out.old_p_dest   <= 'bx;
+        rename_dispatch_out.p_src1       <= 'bx;
+        rename_dispatch_out.p_src2       <= 'bx;
+        rename_dispatch_out.p_src1_rdy   <= 'bx;
+        rename_dispatch_out.p_src2_rdy   <= 'bx;
+      end
+      if (cdb_valid) prrt[cdb_p_dest] <= 1'b1;
+      if (commit_valid) begin
+        arch_reg_map[commit_rd] <= commit_pd;
+        free_list_tail <= (commit_rd != 0) ? free_list_tail + 1 : free_list_tail;
+        free_list_head_arch <= (commit_rd != 0) ? free_list_head_arch + 1 : free_list_head_arch;
+        free_list[free_list_tail[TAG_WIDTH-1:0]] <= commit_old_pd;
+      end
     end
-    
-    always_comb begin
-        old_p_dest  =   spec_reg_map[decode_rename_in.r_dst];
-        phy_dst = free_list[free_list_head[TAG_WIDTH-1:0]];
-        case({decode_rename_in.src1_valid, decode_rename_in.src2_valid})
-            2'b00: begin
-                phy_src1 = 'x;
-                phy_src2 = 'x;
-            end
-            2'b01: begin
-                phy_src1 = 'x;
-                phy_src2 = spec_reg_map[decode_rename_in.r_src2];
-            end
-            2'b10: begin
-                phy_src1 = spec_reg_map[decode_rename_in.r_src1];
-                phy_src2 = 'x;
-            end
-            2'b11: begin
-                phy_src1 = spec_reg_map[decode_rename_in.r_src1];
-                phy_src2 = spec_reg_map[decode_rename_in.r_src2];
-            end
-            default: begin
-                phy_src1 = 'x;
-                phy_src2 = 'x;
-            end
-        endcase
-    end
-    assign rename_stall = decode_rename_in.valid & free_list_empty & ~is_r_dst_zero  & (decode_rename_in.except_cause == EXCEPT_NONE);
+  end
+
+  always_comb begin
+    old_p_dest = spec_reg_map[decode_rename_in.r_dst];
+    phy_dst = free_list[free_list_head[TAG_WIDTH-1:0]];
+    case ({
+      decode_rename_in.src1_valid, decode_rename_in.src2_valid
+    })
+      2'b00: begin
+        phy_src1 = 'x;
+        phy_src2 = 'x;
+      end
+      2'b01: begin
+        phy_src1 = 'x;
+        phy_src2 = spec_reg_map[decode_rename_in.r_src2];
+      end
+      2'b10: begin
+        phy_src1 = spec_reg_map[decode_rename_in.r_src1];
+        phy_src2 = 'x;
+      end
+      2'b11: begin
+        phy_src1 = spec_reg_map[decode_rename_in.r_src1];
+        phy_src2 = spec_reg_map[decode_rename_in.r_src2];
+      end
+      default: begin
+        phy_src1 = 'x;
+        phy_src2 = 'x;
+      end
+    endcase
+  end
+  assign rename_stall = decode_rename_in.valid & free_list_empty & ~is_r_dst_zero  & (decode_rename_in.except_cause == EXCEPT_NONE);
 endmodule
