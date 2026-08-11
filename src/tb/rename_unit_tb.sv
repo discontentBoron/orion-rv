@@ -115,7 +115,8 @@ module rename_unit_tb;
         decode_rename_in.src1_valid     = 0;
         decode_rename_in.src2_valid     = 0;
         decode_rename_in.valid          = 0;
-        decode_rename_in.except_cause          = EXCEPT_NONE;
+        decode_rename_in.except         = 0;
+        decode_rename_in.except_cause   = EXCEPT_NONE;
         branch_mispredict   = 0;
         commit_valid        = 0;
         commit_rd           = 0;
@@ -134,16 +135,39 @@ module rename_unit_tb;
         input                      s1v,
         input                      s2v
     );
-        decode_rename_in.r_src1            = i_src1;
-        decode_rename_in.r_src2            = i_src2;
-        decode_rename_in.r_dst             = i_dst;
-        decode_rename_in.pc                = i_pc;
-        decode_rename_in.src1_valid        = s1v;
-        decode_rename_in.src2_valid        = s2v;
-        decode_rename_in.valid             = 1;
-        decode_rename_in.except_cause             = EXCEPT_NONE;
-        branch_mispredict = 0;
-        commit_valid      = 0;
+        decode_rename_in.r_src1             = i_src1;
+        decode_rename_in.r_src2             = i_src2;
+        decode_rename_in.r_dst              = i_dst;
+        decode_rename_in.pc                 = i_pc;
+        decode_rename_in.src1_valid         = s1v;
+        decode_rename_in.src2_valid         = s2v;
+        decode_rename_in.except             = 0;
+        decode_rename_in.valid              = 1;
+        decode_rename_in.except_cause       = EXCEPT_NONE;
+        branch_mispredict   = 0;
+        commit_valid        = 0;
+        @(posedge clk);
+    endtask
+
+    task automatic drive_illegal_instr(
+        input [REG_ADDR_WIDTH-1:0] i_src1,
+        input [REG_ADDR_WIDTH-1:0] i_src2,
+        input [REG_ADDR_WIDTH-1:0] i_dst,
+        input [DATA_WIDTH-1:0]     i_pc,
+        input                      s1v,
+        input                      s2v
+    );
+        decode_rename_in.r_src1             = i_src1;
+        decode_rename_in.r_src2             = i_src2;
+        decode_rename_in.r_dst              = i_dst;
+        decode_rename_in.pc                 = i_pc;
+        decode_rename_in.src1_valid         = s1v;
+        decode_rename_in.src2_valid         = s2v;
+        decode_rename_in.except             = 1;
+        decode_rename_in.valid              = 1;
+        decode_rename_in.except_cause       = EXCEPT_ILLEGAL_INST;
+        branch_mispredict   = 0;
+        commit_valid        = 0;
         @(posedge clk);
     endtask
 
@@ -167,6 +191,7 @@ module rename_unit_tb;
         decode_rename_in.src2_valid     = s2v;
         decode_rename_in.valid          = 1;
         decode_rename_in.except_cause          = EXCEPT_NONE;
+        decode_rename_in.except         = 0;  
         branch_mispredict   = 0;
         commit_valid        = 1;
         commit_rd           = c_rd;

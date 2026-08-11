@@ -7,7 +7,7 @@ RTL_FLIST = ../inputs/orion_rv_src_list.txt
 TB_DIR  = ../src/tb/
 
 #Default testbench
-TB_FILE ?= top_tb
+TB_FILE ?= issue_queue_tb
 
 #default
 all: compile sim
