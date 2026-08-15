@@ -6,6 +6,7 @@ module rename_unit (
     input var decode_rename_pkt_s decode_rename_in,
     input logic branch_mispredict,
     input logic cdb_valid,
+    input logic rob_full,
     input logic [TAG_WIDTH-1:0] cdb_p_dest,
     input logic commit_valid,  //Instruction retired by ROB
     input   logic [REG_ADDR_WIDTH-1:0]  commit_rd,          //The arch. register which should hold the arch. state
@@ -75,7 +76,20 @@ module rename_unit (
         prrt                             <= '0;
         for (int i = 0; i < ARCH_REGS; i++) prrt[arch_reg_map[i]] <= 1'b1;
       end else if (decode_rename_in.valid) begin
-        if (decode_rename_in.except_cause != EXCEPT_NONE) begin
+        if (rob_full) begin
+        // ROB full – stall everything; do NOT allocate or dispatch
+        rename_dispatch_out.valid        <= 1'b0;
+        rename_dispatch_out.except       <= 1'b0;
+        rename_dispatch_out.reg_we       <= 1'b0;
+        rename_dispatch_out.p_dest       <= 'b0;
+        rename_dispatch_out.p_src1       <= 'b0;
+        rename_dispatch_out.p_src2       <= 'b0;
+        rename_dispatch_out.p_src1_valid <= 1'b0;
+        rename_dispatch_out.p_src2_valid <= 1'b0;
+        rename_dispatch_out.old_p_dest   <= 'b0;
+        rename_dispatch_out.p_src1_rdy   <= 1'b0;
+        rename_dispatch_out.p_src2_rdy   <= 1'b0; 
+      end else if (decode_rename_in.except_cause != EXCEPT_NONE) begin
           rename_dispatch_out.valid        <= 1'b1;
           rename_dispatch_out.except       <= decode_rename_in.except;
           rename_dispatch_out.reg_we       <= 1'b0;
@@ -180,5 +194,12 @@ module rename_unit (
       end
     endcase
   end
-  assign rename_stall = decode_rename_in.valid & free_list_empty & ~is_r_dst_zero  & (decode_rename_in.except_cause == EXCEPT_NONE);
+  assign rename_stall = decode_rename_in.valid & ( rob_full | ( (decode_rename_in.except_cause == EXCEPT_NONE) & ~is_r_dst_zero & free_list_empty ));
+  `ifdef DEBUG
+    always_comb begin
+    if (rename_stall)
+        $display("RENAME STALL at time %t (free_empty=%b, rob_full=%b)", $time, free_list_empty, rob_full);
+    end
+  `endif
+  
 endmodule

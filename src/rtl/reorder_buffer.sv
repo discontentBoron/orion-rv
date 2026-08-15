@@ -125,6 +125,10 @@ module reorder_buffer(
                 rob_mem[cdb_rob_tag].except       <= cdb_exception;
                 rob_mem[cdb_rob_tag].except_cause <= cdb_cause;
             end
+            `ifdef DEBUG
+                if (rob_full) $display("ROB FULL at time %t", $time);
+            `endif
+            
         end
     end
 endmodule
