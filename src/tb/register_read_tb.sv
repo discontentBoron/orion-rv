@@ -313,7 +313,7 @@ task automatic test_F;
     dispatch_in.instr_class    = INSTR_LOAD;
     dispatch_in.func_unit_type = FU_LSU;
     dispatch_in.exec_unit_uop  = LW;
-    dispatch_in.cause          = EXCEPT_ILLEGAL_INST;
+    dispatch_in.except_cause          = EXCEPT_ILLEGAL_INST;
     dispatch_in.except         = 1;
     @(posedge clk); #1; dispatch_in = '0;
 
