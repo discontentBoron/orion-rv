@@ -17,3 +17,4 @@
 ../src/rtl/fetch_unit.sv
 ../src/rtl/reorder_buffer.sv
 ../src/rtl/issue_queue.sv
+../src/rtl/fetch_decode_rename_unit_tb.sv
