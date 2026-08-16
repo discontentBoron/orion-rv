@@ -1,24 +1,25 @@
+`timescale 1ns / 1ps
 import orion_pkg::*;
 
 module register_read (
-    input  logic                    clk,
-    input  logic                    rst_n,
+    input   logic                    clk,
+    input   logic                    rst_n,
 
     // From Issue Queue
     input  rename_dispatch_pkt_s    dispatch_in,
 
     // Flush from branch misprediction / exception
-    input  logic                    flush,
-    input   logic [ROB_PTR-1:0] dispatch_rob_tag,
+    input   logic                    flush,
+    input   logic [ROB_PTR-1:0]      dispatch_rob_tag,
     // CDB (Common Data Bus) — for future forwarding; unused mux input tied 0
-    input  logic [TAG_WIDTH-1:0]    cdb_tag,
-    input  logic [DATA_WIDTH-1:0]   cdb_data,
-    input  logic                    cdb_valid,
+    input   logic [TAG_WIDTH-1:0]    cdb_tag,
+    input   logic [DATA_WIDTH-1:0]   cdb_data,
+    input   logic                    cdb_valid,
 
     // Writeback port into PRF (from execution units)
-    input  logic                    wb_en,
-    input  logic [TAG_WIDTH-1:0]    wb_tag,
-    input  logic [DATA_WIDTH-1:0]   wb_data,
+    input   logic                    wb_en,
+    input   logic [TAG_WIDTH-1:0]    wb_tag,
+    input   logic [DATA_WIDTH-1:0]   wb_data,
 
     // To Execute stage
     output regread_execute_pkt_s    execute_out
@@ -55,9 +56,8 @@ logic [DATA_WIDTH-1:0] prf_src1_raw, prf_src2_raw;
 logic [DATA_WIDTH-1:0] src1_data_comb, src2_data_comb;
 
 // Suppressing unused-variable warnings: forward_sel intentionally wired to 0
-/* verilator lint_off UNUSED */
+
 logic forward_sel1, forward_sel2;
-/* verilator lint_on  UNUSED */
 
 // --- CDB comparators (wired to 0 until forwarding is enabled) ---
 assign forward_sel1 = 1'b0;  // (cdb_tag == dispatch_in.p_src1) && cdb_valid && dispatch_in.p_src1_valid;

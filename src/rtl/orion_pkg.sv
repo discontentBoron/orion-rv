@@ -149,4 +149,17 @@ package orion_pkg;
         logic                       mispredict;
   } rob_entry_s;
 
+  typedef struct packed {
+		logic                  valid;
+		logic [TAG_WIDTH-1:0]  p_dest;
+		logic [TAG_WIDTH-1:0]  old_p_dest;
+		logic [ROB_PTR-1:0]    rob_tag;
+		logic                  reg_we;
+		logic [DATA_WIDTH-1:0] result;
+		logic [DATA_WIDTH-1:0] pc;
+		instr_class_e          instr_class;
+		except_cause_e         except_cause;
+		logic                  except;
+  } execute_wb_pkt_s;
+
 endpackage

@@ -11,9 +11,10 @@
 //../sram/sram_model.v
 
 // RTL Source
-/* rtl files here */
+/* rtl files here 
 ../src/rtl/rename_unit.sv
 ../src/rtl/decode_unit.sv
 ../src/rtl/fetch_unit.sv
 ../src/rtl/reorder_buffer.sv
-../src/rtl/issue_queue.sv
+../src/rtl/issue_queue.sv */
+../src/rtl/alu.sv
