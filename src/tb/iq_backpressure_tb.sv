@@ -36,7 +36,6 @@ module iq_backpressure_tb;
     // -------------------------------------------------------------------------
     logic                   rename_stall;
     rename_dispatch_pkt_s   rename_out;
-    logic [REG_ADDR_WIDTH-1:0] rename_out_r_dst;
 
     // -------------------------------------------------------------------------
     // ROB

@@ -63,7 +63,6 @@ module fetch_decode_rename_tb;
     // ---- Rename -------------------------------------------------------------
     logic                  rename_stall;
     rename_dispatch_pkt_s  rename_out;
-    logic [REG_ADDR_WIDTH-1:0] r_dst_q; // see gap #3 above
 
     // ---- ROB ------------------------------------------------------------
     logic [ROB_PTR-1:0]    rob_tag;

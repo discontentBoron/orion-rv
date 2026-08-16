@@ -68,8 +68,7 @@ module dispatch_issue_tb;
     );
 
     reorder_buffer u_rob (
-        .clk(clk), .rst_n(rst_n), 
-        .dispatch_r_dst(r_dst_q), 
+        .clk(clk), .rst_n(rst_n),
         .dispatch_in(rename_out),
         .rob_tag_out(rob_tag), 
         .rob_full(rob_full),

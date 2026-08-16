@@ -8,7 +8,6 @@ module dispatch_issue_validation_tb;
     logic fetch_valid, rename_stall;
     decode_rename_pkt_s decode_out;
     rename_dispatch_pkt_s rename_out;
-    logic [REG_ADDR_WIDTH-1:0] r_dst_q;
 
     logic [ROB_PTR-1:0] rob_tag;
     logic rob_full;
