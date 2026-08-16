@@ -1,27 +1,3 @@
-// =============================================================================
-// register_read.sv  —  Orion OOO RISC-V Processor
-// Register Read Stage (Stage 6 of 8)
-//
-// Sits between Issue Queue and Execute.
-// Responsibilities:
-//   1. Write incoming wb_en writeback data into the Physical Register File (PRF)
-//   2. Read PRF[p_src1] and PRF[p_src2] combinationally
-//   3. Enforce x0 == 0 invariant (physical reg 0 always reads as zero)
-//   4. Register the full output packet on the rising edge
-//   5. On flush: register a bubble (valid=0) so downstream sees a clean NOP
-//   6. CDB ports are wired in and mux structure is present for easy forwarding
-//      addition later — currently forward_sel is tied to 0
-//
-// Design notes
-//   • PRF is flip-flop based (not SRAM) → read is purely combinational.
-//   • Writeback write and PRF read happen in the same always block:
-//     write is clocked, read is combinational → a wb_en on cycle N is visible
-//     to a read on cycle N+1. The Issue Queue guarantees operands are ready
-//     before issuing, so this is always correct.
-//   • flush takes priority over everything — it gates valid to 0 before
-//     the register stage so the bubble propagates correctly.
-// =============================================================================
-
 import orion_pkg::*;
 
 module register_read (
@@ -33,7 +9,7 @@ module register_read (
 
     // Flush from branch misprediction / exception
     input  logic                    flush,
-
+    input   logic [ROB_PTR-1:0] dispatch_rob_tag,
     // CDB (Common Data Bus) — for future forwarding; unused mux input tied 0
     input  logic [TAG_WIDTH-1:0]    cdb_tag,
     input  logic [DATA_WIDTH-1:0]   cdb_data,
@@ -143,6 +119,7 @@ always_ff @(posedge clk or negedge rst_n) begin
 
         // valid — flush wins over everything
         execute_out.valid           <= dispatch_in.valid & ~flush;
+        execute_out.rob_tag         <= dispatch_rob_tag;
     end
 end
 

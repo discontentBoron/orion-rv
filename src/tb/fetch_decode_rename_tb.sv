@@ -121,10 +121,10 @@ module fetch_decode_rename_tb;
         .decode_out   (decode_out)
     );
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) r_dst_q <= '0;
-        else        r_dst_q <= decode_out.r_dst;
-    end
+    // always_ff @(posedge clk or negedge rst_n) begin
+    //     if (!rst_n) r_dst_q <= '0;
+    //     else        r_dst_q <= decode_out.r_dst;
+    // end
 
     rename_unit u_rename (
         .clk                (clk),
@@ -134,6 +134,7 @@ module fetch_decode_rename_tb;
         .cdb_valid          (cdb_valid),
         .cdb_p_dest         (cdb_p_dest),
         .rob_full           (rob_full),
+        .iq_full            (iq_full),
         .commit_valid       (commit_valid),
         .commit_rd          (commit_rd),
         .commit_pd          (commit_pd),
@@ -145,10 +146,11 @@ module fetch_decode_rename_tb;
     reorder_buffer u_rob (
         .clk               (clk),
         .rst_n             (rst_n),
-        .dispatch_r_dst    (r_dst_q),
+        // .dispatch_r_dst    (r_dst_q),
         .dispatch_in       (rename_out),
         .rob_tag_out       (rob_tag),
         .rob_full          (rob_full),
+        .iq_full           (iq_full),
         .cdb_valid         (cdb_valid),
         .cdb_rob_tag       (cdb_rob_tag),
         .cdb_mispredict    (1'b0),
@@ -170,6 +172,7 @@ module fetch_decode_rename_tb;
         .rst_n             (rst_n),
         .dispatch_in       (rename_out),
         .dispatch_rob_tag  (rob_tag),
+        .rob_full          (rob_full),
         .iq_full           (iq_full),
         .cdb_valid         (cdb_valid),
         .cdb_p_dest        (cdb_p_dest),

@@ -4,8 +4,8 @@ module reorder_buffer(
     input   logic                           clk,
     input   logic                           rst_n,
 
-    input   logic [REG_ADDR_WIDTH-1:0]      dispatch_r_dst,
     input   rename_dispatch_pkt_s           dispatch_in,
+    input   logic                           iq_full,
     output  logic   [ROB_PTR-1:0]           rob_tag_out,
     output  logic                           rob_full,
 
@@ -95,13 +95,12 @@ module reorder_buffer(
                     commit_pd     <= head_entry.p_dest;
                     commit_old_pd <= head_entry.old_p_dest;
                 end
-                if (head_entry.instr_class == INSTR_STORE)
-                    store_commit  <= 1'b1;
+                if (head_entry.instr_class == INSTR_STORE) store_commit  <= 1'b1;
                 head <= head + 1;
             end
             // Dispatch 
-            if (!flushing && dispatch_in.valid && !rob_full) begin
-                rob_mem[rob_tag_out].r_dst          <= dispatch_r_dst;
+            if (!flushing && dispatch_in.valid && !rob_full && !iq_full) begin
+                rob_mem[rob_tag_out].r_dst          <= dispatch_in.r_dst;
                 rob_mem[rob_tag_out].p_dest         <= dispatch_in.p_dest;
                 rob_mem[rob_tag_out].old_p_dest     <= dispatch_in.old_p_dest;
                 rob_mem[rob_tag_out].reg_we         <= dispatch_in.reg_we;
@@ -127,6 +126,7 @@ module reorder_buffer(
             end
             `ifdef DEBUG
                 if (rob_full) $display("ROB FULL at time %t", $time);
+                if (iq_full)  $display("ROB dispatch blocked by IQ FULL at time %t", $time);
             `endif
             
         end

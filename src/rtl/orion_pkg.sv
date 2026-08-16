@@ -85,6 +85,7 @@ package orion_pkg;
     logic [DATA_WIDTH-1:0] pc;
     logic [DATA_WIDTH-1:0] imm_val;
     logic [DATA_WIDTH-1:0] predicted_pc;
+    logic [REG_ADDR_WIDTH-1:0] r_dst;
     except_cause_e         except_cause;
     instr_class_e          instr_class;
     func_unit_type_e       func_unit_type;
@@ -131,6 +132,7 @@ package orion_pkg;
     logic                  except;
     logic [DATA_WIDTH-1:0] src1_data;
     logic [DATA_WIDTH-1:0] src2_data;
+    logic [ROB_PTR-1:0] rob_tag;
   } regread_execute_pkt_s;
   
   typedef struct packed {

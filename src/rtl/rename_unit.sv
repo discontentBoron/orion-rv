@@ -7,11 +7,12 @@ module rename_unit (
     input logic branch_mispredict,
     input logic cdb_valid,
     input logic rob_full,
+    input logic iq_full,
     input logic [TAG_WIDTH-1:0] cdb_p_dest,
     input logic commit_valid,  //Instruction retired by ROB
-    input   logic [REG_ADDR_WIDTH-1:0]  commit_rd,          //The arch. register which should hold the arch. state
+    input logic [REG_ADDR_WIDTH-1:0]  commit_rd,          //The arch. register which should hold the arch. state
     input logic [TAG_WIDTH-1:0] commit_pd,  //The phy. register which actually holds the data
-    input   logic [TAG_WIDTH-1:0]       commit_old_pd,      //The old phy. register before renaming, to release back to free list
+    input logic [TAG_WIDTH-1:0]       commit_old_pd,      //The old phy. register before renaming, to release back to free list
     output logic rename_stall,
     output rename_dispatch_pkt_s rename_dispatch_out
 );
@@ -29,6 +30,8 @@ module rename_unit (
   logic   free_list_full;
   logic   free_list_empty;
   logic   is_r_dst_zero;
+  logic   dispatch_ready;
+  assign dispatch_ready = !rob_full && !iq_full;
   assign is_r_dst_zero = (decode_rename_in.r_dst == 0);
   assign free_list_empty = (free_list_head == free_list_tail);
   assign  free_list_full = (free_list_head[TAG_WIDTH] != free_list_tail[TAG_WIDTH]) && (free_list_head[TAG_WIDTH-1:0] == free_list_tail[TAG_WIDTH-1:0]);
@@ -52,14 +55,6 @@ module rename_unit (
         spec_reg_map[i] <= i;
       end
     end else begin
-      rename_dispatch_out.pc             <= decode_rename_in.pc;
-      rename_dispatch_out.except_cause   <= decode_rename_in.except_cause;
-      rename_dispatch_out.imm_val        <= decode_rename_in.imm_val;
-      rename_dispatch_out.instr_class    <= decode_rename_in.instr_class;
-      rename_dispatch_out.predicted_pc   <= decode_rename_in.predicted_pc;
-      rename_dispatch_out.exec_unit_uop  <= decode_rename_in.exec_unit_uop;
-      rename_dispatch_out.func_unit_type <= decode_rename_in.func_unit_type;
-
       if (branch_mispredict) begin
         spec_reg_map                     <= arch_reg_map;
         free_list_head                   <= free_list_head_arch;
@@ -75,21 +70,32 @@ module rename_unit (
         rename_dispatch_out.p_src2       <= 'bx;
         prrt                             <= '0;
         for (int i = 0; i < ARCH_REGS; i++) prrt[arch_reg_map[i]] <= 1'b1;
+      end else if (rename_dispatch_out.valid && !dispatch_ready) begin 
+          rename_dispatch_out <= rename_dispatch_out;
+          //rename_dispatch_r_dst <= rename_dispatch_r_dst;
       end else if (decode_rename_in.valid) begin
-        if (rob_full) begin
-        // ROB full – stall everything; do NOT allocate or dispatch
-        rename_dispatch_out.valid        <= 1'b0;
-        rename_dispatch_out.except       <= 1'b0;
-        rename_dispatch_out.reg_we       <= 1'b0;
-        rename_dispatch_out.p_dest       <= 'b0;
-        rename_dispatch_out.p_src1       <= 'b0;
-        rename_dispatch_out.p_src2       <= 'b0;
-        rename_dispatch_out.p_src1_valid <= 1'b0;
-        rename_dispatch_out.p_src2_valid <= 1'b0;
-        rename_dispatch_out.old_p_dest   <= 'b0;
-        rename_dispatch_out.p_src1_rdy   <= 1'b0;
-        rename_dispatch_out.p_src2_rdy   <= 1'b0; 
-      end else if (decode_rename_in.except_cause != EXCEPT_NONE) begin
+        rename_dispatch_out.r_dst          <= decode_rename_in.r_dst;
+        rename_dispatch_out.pc             <= decode_rename_in.pc;
+        rename_dispatch_out.except_cause   <= decode_rename_in.except_cause;
+        rename_dispatch_out.imm_val        <= decode_rename_in.imm_val;
+        rename_dispatch_out.instr_class    <= decode_rename_in.instr_class;
+        rename_dispatch_out.predicted_pc   <= decode_rename_in.predicted_pc;
+        rename_dispatch_out.exec_unit_uop  <= decode_rename_in.exec_unit_uop;
+        rename_dispatch_out.func_unit_type <= decode_rename_in.func_unit_type;
+        if (rob_full || iq_full) begin
+          // ROB full – stall everything; do NOT allocate or dispatch
+          rename_dispatch_out.valid        <= 1'b0;
+          rename_dispatch_out.except       <= 1'b0;
+          rename_dispatch_out.reg_we       <= 1'b0;
+          rename_dispatch_out.p_dest       <= 'b0;
+          rename_dispatch_out.p_src1       <= 'b0;
+          rename_dispatch_out.p_src2       <= 'b0;
+          rename_dispatch_out.p_src1_valid <= 1'b0;
+          rename_dispatch_out.p_src2_valid <= 1'b0;
+          rename_dispatch_out.old_p_dest   <= 'b0;
+          rename_dispatch_out.p_src1_rdy   <= 1'b0;
+          rename_dispatch_out.p_src2_rdy   <= 1'b0; 
+        end else if (decode_rename_in.except_cause != EXCEPT_NONE) begin
           rename_dispatch_out.valid        <= 1'b1;
           rename_dispatch_out.except       <= decode_rename_in.except;
           rename_dispatch_out.reg_we       <= 1'b0;
@@ -112,9 +118,17 @@ module rename_unit (
           rename_dispatch_out.p_src1_valid <= decode_rename_in.src1_valid;
           rename_dispatch_out.p_src2_valid <= decode_rename_in.src2_valid;
           rename_dispatch_out.old_p_dest   <= 'b0;
-          rename_dispatch_out.p_src1_rdy   <= decode_rename_in.src1_valid ? prrt[phy_src1] : 1'b1;
-          rename_dispatch_out.p_src2_rdy   <= decode_rename_in.src2_valid ? prrt[phy_src2] : 1'b1;
+          rename_dispatch_out.p_src1_rdy   <= decode_rename_in.src1_valid ? (prrt[phy_src1] || (cdb_valid && (cdb_p_dest == phy_src1))) : 1'b1;
+          rename_dispatch_out.p_src2_rdy   <= decode_rename_in.src2_valid ? (prrt[phy_src2] || (cdb_valid && (cdb_p_dest == phy_src2))) : 1'b1;
         end else if (~free_list_empty) begin
+          $display(
+            "%0t head=%0d index=%0d free_entry=%0d phy_dst=%0d",
+            $time,
+            free_list_head,
+            free_list_head[TAG_WIDTH-1:0],
+            free_list[free_list_head[TAG_WIDTH-1:0]],
+            phy_dst
+          );
           spec_reg_map[decode_rename_in.r_dst] <= phy_dst;
           free_list_head <= free_list_head + 1;
           rename_dispatch_out.valid <= 1'b1;
@@ -127,8 +141,10 @@ module rename_unit (
           rename_dispatch_out.p_src1_valid <= decode_rename_in.src1_valid;
           rename_dispatch_out.p_src2_valid <= decode_rename_in.src2_valid;
           rename_dispatch_out.old_p_dest <= old_p_dest;
-          rename_dispatch_out.p_src1_rdy <= decode_rename_in.src1_valid ? prrt[phy_src1] : 1'b1;
-          rename_dispatch_out.p_src2_rdy <= decode_rename_in.src2_valid ? prrt[phy_src2] : 1'b1;
+          rename_dispatch_out.p_src1_rdy <= decode_rename_in.src1_valid ? 
+                                            (prrt[phy_src1] || (cdb_valid && (cdb_p_dest == phy_src1))) : 1'b1;
+          rename_dispatch_out.p_src2_rdy <= decode_rename_in.src2_valid ? 
+                                            (prrt[phy_src2] || (cdb_valid && (cdb_p_dest == phy_src2))) : 1'b1;
         end else begin
           rename_dispatch_out.valid        <= 1'b0;
           rename_dispatch_out.except       <= 1'b0;
@@ -194,11 +210,23 @@ module rename_unit (
       end
     endcase
   end
-  assign rename_stall = decode_rename_in.valid & ( rob_full | ( (decode_rename_in.except_cause == EXCEPT_NONE) & ~is_r_dst_zero & free_list_empty ));
+  assign rename_stall = (rename_dispatch_out.valid & ~dispatch_ready) |
+                        (decode_rename_in.valid & ( rob_full | iq_full |
+                        ((decode_rename_in.except_cause == EXCEPT_NONE) & ~is_r_dst_zero & free_list_empty )));
   `ifdef DEBUG
-    always_comb begin
-    if (rename_stall)
-        $display("RENAME STALL at time %t (free_empty=%b, rob_full=%b)", $time, free_list_empty, rob_full);
+    always_ff @(posedge clk) begin
+      if (rename_stall) begin
+        $display(
+            "%0t HOLD: pc=%08h pd=%0d s1=%0d v1=%b s2=%0d v2=%b",
+            $time,
+            rename_dispatch_out.pc,
+            rename_dispatch_out.p_dest,
+            rename_dispatch_out.p_src1,
+            rename_dispatch_out.p_src1_valid,
+            rename_dispatch_out.p_src2,
+            rename_dispatch_out.p_src2_valid
+        );
+      end
     end
   `endif
   

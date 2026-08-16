@@ -7,6 +7,7 @@ module issue_queue (
 
     input  rename_dispatch_pkt_s               dispatch_in,
     input  logic                 [ROB_PTR-1:0] dispatch_rob_tag,
+    input   logic                              rob_full,
     output logic                               iq_full,
 
     input logic                 cdb_valid,
@@ -103,11 +104,15 @@ module issue_queue (
       global_counter <= '0;
       for (int i = 0; i < IQ_SIZE; i++) iq_mem[i].valid <= 1'b0;
     end else begin
-      if (dispatch_in.valid && !iq_full && !branch_mispredict && !exception_valid) begin
+      if (dispatch_in.valid && !iq_full && !rob_full && !branch_mispredict && !exception_valid) begin
         iq_mem[free_slot_idx].p_src1         <= dispatch_in.p_src1;
         iq_mem[free_slot_idx].p_src2         <= dispatch_in.p_src2;
-        iq_mem[free_slot_idx].p_src1_ready   <= !dispatch_in.p_src1_valid | dispatch_in.p_src1_rdy;
-        iq_mem[free_slot_idx].p_src2_ready   <= !dispatch_in.p_src2_valid | dispatch_in.p_src2_rdy;
+        iq_mem[free_slot_idx].p_src1_ready   <= !dispatch_in.p_src1_valid ||
+                                                dispatch_in.p_src1_rdy ||
+                                                (cdb_valid && (cdb_p_dest == dispatch_in.p_src1));
+        iq_mem[free_slot_idx].p_src2_ready   <= !dispatch_in.p_src2_valid ||
+                                                dispatch_in.p_src2_rdy ||
+                                                (cdb_valid && (cdb_p_dest == dispatch_in.p_src2));
         iq_mem[free_slot_idx].p_dest         <= dispatch_in.p_dest;
         iq_mem[free_slot_idx].old_p_dest     <= dispatch_in.old_p_dest;
         iq_mem[free_slot_idx].rob_tag        <= dispatch_rob_tag;

@@ -36,7 +36,6 @@ module reorder_buffer_tb;
     reorder_buffer dut (
         .clk              (clk),
         .rst_n            (rst_n),
-        .dispatch_r_dst   (dispatch_r_dst),
         .dispatch_in      (dispatch_in),
         .rob_tag_out      (rob_tag_out),
         .rob_full         (rob_full),
