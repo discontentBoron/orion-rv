@@ -19,3 +19,4 @@
 ../src/rtl/issue_queue.sv */
 ../src/rtl/alu.sv
 ../src/rtl/mul.sv
+../src/rtl/div.sv
