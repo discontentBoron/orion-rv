@@ -165,10 +165,10 @@ module mul_tb;
             logic [ROB_PTR-1:0]    exp_robtag [0:3];
             int i;
 
-            exp_result[0] = 32'd0;  exp_pdest[0] = 6'd40; exp_robtag[0] = 5'd0;  // 0*4 // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-            exp_result[1] = 32'd5;  exp_pdest[1] = 6'd41; exp_robtag[1] = 5'd1;  // 1*5 // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-            exp_result[2] = 32'd12; exp_pdest[2] = 6'd42; exp_robtag[2] = 5'd2;  // 2*6 // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-            exp_result[3] = 32'd21; exp_pdest[3] = 6'd43; exp_robtag[3] = 5'd3;  // 3*7 // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+            exp_result[0] = 32'd0;  exp_pdest[0] = 6'd40; exp_robtag[0] = 5'd0;  // 0*4 // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+            exp_result[1] = 32'd5;  exp_pdest[1] = 6'd41; exp_robtag[1] = 5'd1;  // 1*5 // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+            exp_result[2] = 32'd12; exp_pdest[2] = 6'd42; exp_robtag[2] = 5'd2;  // 2*6 // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+            exp_result[3] = 32'd21; exp_pdest[3] = 6'd43; exp_robtag[3] = 5'd3;  // 3*7 // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
 
             @(negedge clk);
             for (i = 0; i < 4; i++) begin

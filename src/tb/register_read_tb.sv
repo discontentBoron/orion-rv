@@ -141,7 +141,7 @@ task automatic drv(
     dispatch_in.p_dest  = 6'd1; 
     dispatch_in.reg_we = 1;
     dispatch_in.exec_unit_uop = ADD;
-    @(posedge clk); #1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    @(posedge clk); #1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
     dispatch_in = '0;
 endtask
 
@@ -152,7 +152,7 @@ task automatic test_A;
     $display("\n--- GROUP A: Reset & sanity ---");
 
     // A1 — valid=0 after reset
-    do_reset; @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    do_reset; @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
     CK1(execute_out.valid, 1'b0, "A1: valid=0 after reset");
 
     // A2 — src data fields zeroed after reset
@@ -190,21 +190,21 @@ task automatic test_B;
     do_reset; 
     prf_wr(6'd3, 32'hDEAD0001); 
     prf_wr(6'd4, 32'hBEEF0002);
-    drv(6'd3, 6'd4, 1'b1, 1'b1, 1'b1); @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    drv(6'd3, 6'd4, 1'b1, 1'b1, 1'b1); @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
     CK32(execute_out.src1_data, 32'hDEAD0001, "B3: both-src read src1");
     CK32(execute_out.src2_data, 32'hBEEF0002, "B3: both-src read src2");
 
     // B4 — all-ones pattern
     do_reset; 
     prf_wr(6'd7, 32'hFFFFFFFF);
-    drv(6'd7, 6'd0, 1'b1, 1'b0, 1'b1); @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    drv(6'd7, 6'd0, 1'b1, 1'b0, 1'b1); @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
     CK32(execute_out.src1_data, 32'hFFFFFFFF, "B4: all-ones value");
 
     // B5 — overwrite with zero
     do_reset; 
     prf_wr(6'd8, 32'hABCDABCD); 
     prf_wr(6'd8, 32'h00000000);
-    drv(6'd8, 6'd0, 1'b1, 1'b0, 1'b1); @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    drv(6'd8, 6'd0, 1'b1, 1'b0, 1'b1); @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
     CK32(execute_out.src1_data, 32'h00000000, "B5: overwrite with zero reads 0");
 
     // B6 — three writes same tag, latest wins
@@ -212,7 +212,7 @@ task automatic test_B;
     prf_wr(6'd15, 32'h11111111); 
     prf_wr(6'd15, 32'h22222222); 
     prf_wr(6'd15, 32'h33333333);
-    drv(6'd15, 6'd0, 1'b1, 1'b0, 1'b1); @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    drv(6'd15, 6'd0, 1'b1, 1'b0, 1'b1); @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
     CK32(execute_out.src1_data, 32'h33333333, "B6: latest after 3 writes");
 endtask
 
@@ -225,26 +225,26 @@ task automatic test_C;
     // C1 — attempt write to tag 0, read back → must be 0
     do_reset;
     @(negedge clk); 
-    wb_en=1; wb_tag=6'd0;  // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    wb_en=1; wb_tag=6'd0;  // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
     wb_data=32'hFFFFFFFF;
-    @(posedge clk); #1; wb_en=0; wb_tag='0; wb_data='0; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    drv(6'd0, 6'd0, 1'b1, 1'b0, 1'b1); @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    @(posedge clk); #1; wb_en=0; wb_tag='0; wb_data='0; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    drv(6'd0, 6'd0, 1'b1, 1'b0, 1'b1); @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
     CK32(execute_out.src1_data, 32'h0, "C1: p_src1==0 reads 0 after write attempt");
 
     // C2 — p_src2==0 with valid=1
-    do_reset; prf_wr(6'd5, 32'hABCDEF01); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    drv(6'd5, 6'd0, 1'b1, 1'b1, 1'b1); @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    do_reset; prf_wr(6'd5, 32'hABCDEF01); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    drv(6'd5, 6'd0, 1'b1, 1'b1, 1'b1); @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
     CK32(execute_out.src2_data, 32'h0, "C2: p_src2==0 reads 0");
 
     // C3 — write to tag 0 must not corrupt tag 1
-    do_reset; prf_wr(6'd1, 32'h12345678); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    @(negedge clk); wb_en=1; wb_tag=6'd0; wb_data=32'hDEADBEEF; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    @(posedge clk); #1; wb_en=0; wb_tag='0; wb_data='0; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    drv(6'd1, 6'd0, 1'b1, 1'b0, 1'b1); @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    do_reset; prf_wr(6'd1, 32'h12345678); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    @(negedge clk); wb_en=1; wb_tag=6'd0; wb_data=32'hDEADBEEF; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    @(posedge clk); #1; wb_en=0; wb_tag='0; wb_data='0; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    drv(6'd1, 6'd0, 1'b1, 1'b0, 1'b1); @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
     CK32(execute_out.src1_data, 32'h12345678, "C3: tag0 write doesn't corrupt tag1");
 
     // C4 — both src tags == 0, both valid=1 → both outputs 0
-    do_reset; drv(6'd0, 6'd0, 1'b1, 1'b1, 1'b1); @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    do_reset; drv(6'd0, 6'd0, 1'b1, 1'b1, 1'b1); @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
     CK32(execute_out.src1_data, 32'h0, "C4: both tag=0 valid=1 → src1=0");
     CK32(execute_out.src2_data, 32'h0, "C4: both tag=0 valid=1 → src2=0");
 endtask
@@ -256,18 +256,18 @@ task automatic test_D;
     $display("\n--- GROUP D: p_srcN_valid gating ---");
 
     // D1 — src1_valid=0 gates src1_data to 0
-    do_reset; prf_wr(6'd9, 32'hCAFEBABE); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    drv(6'd9, 6'd0, 1'b0, 1'b0, 1'b1); @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    do_reset; prf_wr(6'd9, 32'hCAFEBABE); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    drv(6'd9, 6'd0, 1'b0, 1'b0, 1'b1); @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
     CK32(execute_out.src1_data, 32'h0, "D1: src1_valid=0 → src1_data=0");
 
     // D2 — src2_valid=0 gates src2_data to 0
-    do_reset; prf_wr(6'd11, 32'hFACEFACE); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    drv(6'd0, 6'd11, 1'b0, 1'b0, 1'b1); @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    do_reset; prf_wr(6'd11, 32'hFACEFACE); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    drv(6'd0, 6'd11, 1'b0, 1'b0, 1'b1); @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
     CK32(execute_out.src2_data, 32'h0, "D2: src2_valid=0 → src2_data=0");
 
     // D3 — both valids=0
-    do_reset; prf_wr(6'd12, 32'h87654321); prf_wr(6'd13, 32'h12348765); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    drv(6'd12, 6'd13, 1'b0, 1'b0, 1'b1); @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    do_reset; prf_wr(6'd12, 32'h87654321); prf_wr(6'd13, 32'h12348765); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    drv(6'd12, 6'd13, 1'b0, 1'b0, 1'b1); @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
     CK32(execute_out.src1_data, 32'h0, "D3: both_valid=0 → src1=0");
     CK32(execute_out.src2_data, 32'h0, "D3: both_valid=0 → src2=0");
 endtask
@@ -279,47 +279,47 @@ task automatic test_E;
     $display("\n--- GROUP E: Flush ---");
 
     // E1 — flush=1 kills valid
-    do_reset; prf_wr(6'd5, 32'h55555555); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    @(negedge clk); flush=1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    dispatch_in.valid=1; dispatch_in.p_src1=6'd5; dispatch_in.p_src1_valid=1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    @(posedge clk); #1; flush=0; dispatch_in='0; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    @(negedge clk); CK1(execute_out.valid, 1'b0, "E1: flush kills valid"); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    do_reset; prf_wr(6'd5, 32'h55555555); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    @(negedge clk); flush=1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    dispatch_in.valid=1; dispatch_in.p_src1=6'd5; dispatch_in.p_src1_valid=1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    @(posedge clk); #1; flush=0; dispatch_in='0; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    @(negedge clk); CK1(execute_out.valid, 1'b0, "E1: flush kills valid"); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
 
     // E2 — after flush clears, next instr propagates normally
-    do_reset; prf_wr(6'd6, 32'h66666666); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    @(negedge clk); flush=1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    dispatch_in.valid=1; dispatch_in.p_src1=6'd6; dispatch_in.p_src1_valid=1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    @(posedge clk); #1; flush=0; dispatch_in='0; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    do_reset; prf_wr(6'd6, 32'h66666666); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    @(negedge clk); flush=1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    dispatch_in.valid=1; dispatch_in.p_src1=6'd6; dispatch_in.p_src1_valid=1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    @(posedge clk); #1; flush=0; dispatch_in='0; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
     @(negedge clk);
-    dispatch_in.valid=1; dispatch_in.p_src1=6'd6; dispatch_in.p_src1_valid=1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    @(posedge clk); #1; dispatch_in='0; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    dispatch_in.valid=1; dispatch_in.p_src1=6'd6; dispatch_in.p_src1_valid=1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    @(posedge clk); #1; dispatch_in='0; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
     @(negedge clk);
     CK1 (execute_out.valid,     1'b1,       "E2: post-flush valid=1");
     CK32(execute_out.src1_data, 32'h66666666, "E2: post-flush data correct");
 
     // E3 — flush while both srcs valid
-    do_reset; prf_wr(6'd17, 32'hABCDEF00); prf_wr(6'd18, 32'h00FEDCBA); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    @(negedge clk); flush=1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    do_reset; prf_wr(6'd17, 32'hABCDEF00); prf_wr(6'd18, 32'h00FEDCBA); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    @(negedge clk); flush=1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
     dispatch_in.valid=1;
-    dispatch_in.p_src1=6'd17; dispatch_in.p_src1_valid=1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    dispatch_in.p_src2=6'd18; dispatch_in.p_src2_valid=1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    @(posedge clk); #1; flush=0; dispatch_in='0; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    @(negedge clk); CK1(execute_out.valid, 1'b0, "E3: flush both srcs → valid=0"); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    dispatch_in.p_src1=6'd17; dispatch_in.p_src1_valid=1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    dispatch_in.p_src2=6'd18; dispatch_in.p_src2_valid=1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    @(posedge clk); #1; flush=0; dispatch_in='0; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    @(negedge clk); CK1(execute_out.valid, 1'b0, "E3: flush both srcs → valid=0"); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
 
     // E4 — two consecutive flush pulses
-    do_reset; prf_wr(6'd19, 32'h19191919); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    @(negedge clk); flush=1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    dispatch_in.valid=1; dispatch_in.p_src1=6'd19; dispatch_in.p_src1_valid=1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    @(posedge clk); #1; dispatch_in='0; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    dispatch_in.valid=1; dispatch_in.p_src1=6'd19; dispatch_in.p_src1_valid=1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    @(posedge clk); #1; flush=0; dispatch_in='0; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    @(negedge clk); CK1(execute_out.valid, 1'b0, "E4: consecutive flush → valid=0"); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    do_reset; prf_wr(6'd19, 32'h19191919); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    @(negedge clk); flush=1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    dispatch_in.valid=1; dispatch_in.p_src1=6'd19; dispatch_in.p_src1_valid=1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    @(posedge clk); #1; dispatch_in='0; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    dispatch_in.valid=1; dispatch_in.p_src1=6'd19; dispatch_in.p_src1_valid=1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    @(posedge clk); #1; flush=0; dispatch_in='0; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    @(negedge clk); CK1(execute_out.valid, 1'b0, "E4: consecutive flush → valid=0"); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
 
     // E5 — flush on bubble (valid=0 in) → still valid=0 out
     do_reset;
-    @(negedge clk); flush=1; dispatch_in.valid=0; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    @(posedge clk); #1; flush=0; dispatch_in='0; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    @(negedge clk); CK1(execute_out.valid, 1'b0, "E5: flush on bubble stays valid=0"); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    @(negedge clk); flush=1; dispatch_in.valid=0; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    @(posedge clk); #1; flush=0; dispatch_in='0; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    @(negedge clk); CK1(execute_out.valid, 1'b0, "E5: flush on bubble stays valid=0"); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
 endtask
 
 // ===========================================================================
@@ -333,8 +333,8 @@ task automatic test_F;
 
     @(negedge clk);
     dispatch_in.valid          = 1;
-    dispatch_in.p_src1         = 6'd21; dispatch_in.p_src1_valid = 1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    dispatch_in.p_src2         = 6'd22; dispatch_in.p_src2_valid = 1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    dispatch_in.p_src1         = 6'd21; dispatch_in.p_src1_valid = 1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    dispatch_in.p_src2         = 6'd22; dispatch_in.p_src2_valid = 1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
     dispatch_in.p_dest         = 6'd30;
     dispatch_in.old_p_dest     = 6'd29;
     dispatch_in.reg_we         = 1;
@@ -346,7 +346,7 @@ task automatic test_F;
     dispatch_in.exec_unit_uop  = LW;
     dispatch_in.except_cause          = EXCEPT_ILLEGAL_INST;
     dispatch_in.except         = 1;
-    @(posedge clk); #1; dispatch_in = '0; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    @(posedge clk); #1; dispatch_in = '0; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
 
     @(negedge clk);
     CK1 (execute_out.valid,        1'b1,           "F01: valid");
@@ -392,28 +392,28 @@ task automatic test_G;
 
     // G1 — 8 back-to-back instructions, each a different physical register
     do_reset;
-    for (int i = 1; i <= 8; i++) begin earr[i] = 32'h1000_0000 | i; prf_wr(i[5:0], earr[i]); end // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    for (int i = 1; i <= 8; i++) begin earr[i] = 32'h1000_0000 | i; prf_wr(i[5:0], earr[i]); end // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
     for (int i = 1; i <= 8; i++) begin
         drv(i[5:0], 6'd0, 1'b1, 1'b0, 1'b1);
-        @(negedge clk); garr[i] = execute_out.src1_data; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+        @(negedge clk); garr[i] = execute_out.src1_data; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
     end
     for (int i = 1; i <= 8; i++)
         CK32(garr[i], earr[i], $sformatf("G1: back-to-back instr%0d p%0d", i, i));
 
     // G2 — write then read on immediately following cycle
-    do_reset; prf_wr(6'd40, 32'hDEADBEEF); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    drv(6'd40, 6'd0, 1'b1, 1'b0, 1'b1); @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    do_reset; prf_wr(6'd40, 32'hDEADBEEF); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    drv(6'd40, 6'd0, 1'b1, 1'b0, 1'b1); @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
     CK32(execute_out.src1_data, 32'hDEADBEEF, "G2: write then immediate next-cycle read");
 
     // G3 — normal → flush → normal sequence
-    do_reset; prf_wr(6'd25, 32'h25252525); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    do_reset; prf_wr(6'd25, 32'h25252525); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
     drv(6'd25, 6'd0, 1'b1, 1'b0, 1'b1);
-    @(negedge clk); CK1(execute_out.valid, 1'b1, "G3a: pre-flush valid=1"); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    @(negedge clk); flush=1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    dispatch_in.valid=1; dispatch_in.p_src1=6'd25; dispatch_in.p_src1_valid=1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    @(posedge clk); #1; flush=0; dispatch_in='0; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    @(negedge clk); CK1(execute_out.valid, 1'b0, "G3b: flushed valid=0"); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    drv(6'd25, 6'd0, 1'b1, 1'b0, 1'b1); @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    @(negedge clk); CK1(execute_out.valid, 1'b1, "G3a: pre-flush valid=1"); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    @(negedge clk); flush=1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    dispatch_in.valid=1; dispatch_in.p_src1=6'd25; dispatch_in.p_src1_valid=1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    @(posedge clk); #1; flush=0; dispatch_in='0; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    @(negedge clk); CK1(execute_out.valid, 1'b0, "G3b: flushed valid=0"); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    drv(6'd25, 6'd0, 1'b1, 1'b0, 1'b1); @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
     CK1 (execute_out.valid,     1'b1,       "G3c: post-flush valid=1");
     CK32(execute_out.src1_data, 32'h25252525, "G3d: post-flush data correct");
 
@@ -421,18 +421,18 @@ task automatic test_G;
     do_reset;
     for (int i = 1; i < PHY_REGS; i++) prf_wr(i[5:0], 32'hA000_0000 | i);
     for (int i = 1; i < PHY_REGS; i++) begin
-        drv(i[5:0], 6'd0, 1'b1, 1'b0, 1'b1); @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+        drv(i[5:0], 6'd0, 1'b1, 1'b0, 1'b1); @(negedge clk); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
         CK32(execute_out.src1_data, 32'hA000_0000 | i, $sformatf("G4: PRF sweep p%0d", i));
     end
 
     // G5 — 4-instruction ordering stress
     do_reset;
-    prf_wr(6'd50, 32'h50505050); prf_wr(6'd51, 32'h51515151); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    prf_wr(6'd52, 32'h52525252); prf_wr(6'd53, 32'h53535353); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    drv(6'd50, 6'd0, 1'b1, 1'b0, 1'b1); @(negedge clk); o0 = execute_out.src1_data; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    drv(6'd51, 6'd0, 1'b1, 1'b0, 1'b1); @(negedge clk); o1 = execute_out.src1_data; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    drv(6'd52, 6'd0, 1'b1, 1'b0, 1'b1); @(negedge clk); o2 = execute_out.src1_data; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-    drv(6'd53, 6'd0, 1'b1, 1'b0, 1'b1); @(negedge clk); o3 = execute_out.src1_data; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    prf_wr(6'd50, 32'h50505050); prf_wr(6'd51, 32'h51515151); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    prf_wr(6'd52, 32'h52525252); prf_wr(6'd53, 32'h53535353); // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    drv(6'd50, 6'd0, 1'b1, 1'b0, 1'b1); @(negedge clk); o0 = execute_out.src1_data; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    drv(6'd51, 6'd0, 1'b1, 1'b0, 1'b1); @(negedge clk); o1 = execute_out.src1_data; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    drv(6'd52, 6'd0, 1'b1, 1'b0, 1'b1); @(negedge clk); o2 = execute_out.src1_data; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    drv(6'd53, 6'd0, 1'b1, 1'b0, 1'b1); @(negedge clk); o3 = execute_out.src1_data; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
     CK32(o0, 32'h50505050, "G5: pipeline order instr0");
     CK32(o1, 32'h51515151, "G5: pipeline order instr1");
     CK32(o2, 32'h52525252, "G5: pipeline order instr2");
@@ -443,7 +443,7 @@ endtask
 // Main
 // ===========================================================================
 initial begin
-    pass_cnt = 0; fail_cnt = 0; tnum = 1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+    pass_cnt = 0; fail_cnt = 0; tnum = 1; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
 
     $display("=======================================================");
     $display("  REGISTER READ STAGE — COMPREHENSIVE TESTBENCH");
@@ -470,6 +470,6 @@ initial begin
 end
 
 // Watchdog
-initial begin #2_000_000; $display("[TIMEOUT]"); $finish; end // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+initial begin #2_000_000; $display("[TIMEOUT]"); $finish; end // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
 
 endmodule
