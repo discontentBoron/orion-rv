@@ -5,10 +5,10 @@ module rename_unit (
     input logic rst_n,
     input var decode_rename_pkt_s decode_rename_in,
     input logic branch_mispredict,
-    input logic cdb_valid,
+    input logic [NUM_CDB_PORTS-1:0] cdb_valid,
     input logic rob_full,
     input logic iq_full,
-    input logic [TAG_WIDTH-1:0] cdb_p_dest,
+    input logic [TAG_WIDTH-1:0] cdb_p_dest [NUM_CDB_PORTS],
     input logic commit_valid,  //Instruction retired by ROB
     input logic [REG_ADDR_WIDTH-1:0]  commit_rd,          //The arch. register which should hold the arch. state
     input logic [TAG_WIDTH-1:0] commit_pd,  //The phy. register which actually holds the data
@@ -35,6 +35,13 @@ module rename_unit (
   assign is_r_dst_zero = (decode_rename_in.r_dst == 0);
   assign free_list_empty = (free_list_head == free_list_tail);
   assign  free_list_full = (free_list_head[TAG_WIDTH] != free_list_tail[TAG_WIDTH]) && (free_list_head[TAG_WIDTH-1:0] == free_list_tail[TAG_WIDTH-1:0]);
+  function automatic logic cdb_hit(input logic [TAG_WIDTH-1:0] tag);
+    logic [NUM_CDB_PORTS-1:0] hits;
+    for (int p = 0; p < NUM_CDB_PORTS; p++) begin 
+      hits[p] = cdb_valid[p] && (cdb_p_dest[p] == tag);
+    end
+    cdb_hit = |hits;
+  endfunction
   always_ff @(posedge clk) begin
     if (~rst_n) begin
       rename_dispatch_out <= 'b0;
@@ -118,8 +125,8 @@ module rename_unit (
           rename_dispatch_out.p_src1_valid <= decode_rename_in.src1_valid;
           rename_dispatch_out.p_src2_valid <= decode_rename_in.src2_valid;
           rename_dispatch_out.old_p_dest   <= 'b0;
-          rename_dispatch_out.p_src1_rdy   <= decode_rename_in.src1_valid ? (prrt[phy_src1] || (cdb_valid && (cdb_p_dest == phy_src1))) : 1'b1;
-          rename_dispatch_out.p_src2_rdy   <= decode_rename_in.src2_valid ? (prrt[phy_src2] || (cdb_valid && (cdb_p_dest == phy_src2))) : 1'b1;
+          rename_dispatch_out.p_src1_rdy   <= decode_rename_in.src1_valid ? (prrt[phy_src1] || cdb_hit(phy_src1)) : 1'b1;
+          rename_dispatch_out.p_src2_rdy   <= decode_rename_in.src2_valid ? (prrt[phy_src2] || cdb_hit(phy_src2)) : 1'b1;
         end else if (~free_list_empty) begin
           $display(
             "%0t head=%0d index=%0d free_entry=%0d phy_dst=%0d",
@@ -141,10 +148,8 @@ module rename_unit (
           rename_dispatch_out.p_src1_valid <= decode_rename_in.src1_valid;
           rename_dispatch_out.p_src2_valid <= decode_rename_in.src2_valid;
           rename_dispatch_out.old_p_dest <= old_p_dest;
-          rename_dispatch_out.p_src1_rdy <= decode_rename_in.src1_valid ? 
-                                            (prrt[phy_src1] || (cdb_valid && (cdb_p_dest == phy_src1))) : 1'b1;
-          rename_dispatch_out.p_src2_rdy <= decode_rename_in.src2_valid ? 
-                                            (prrt[phy_src2] || (cdb_valid && (cdb_p_dest == phy_src2))) : 1'b1;
+          rename_dispatch_out.p_src1_rdy <= decode_rename_in.src1_valid ? (prrt[phy_src1] || (cdb_valid && cdb_hit(phy_src1))) : 1'b1;
+          rename_dispatch_out.p_src2_rdy <= decode_rename_in.src2_valid ? (prrt[phy_src2] || (cdb_valid && cdb_hit(phy_src2))) : 1'b1;
         end else begin
           rename_dispatch_out.valid        <= 1'b0;
           rename_dispatch_out.except       <= 1'b0;
@@ -172,7 +177,12 @@ module rename_unit (
         rename_dispatch_out.p_src1_rdy   <= 'bx;
         rename_dispatch_out.p_src2_rdy   <= 'bx;
       end
-      if (cdb_valid) prrt[cdb_p_dest] <= 1'b1;
+      for (int p = 0; p < NUM_CDB_PORTS; p ++) begin
+        if (cdb_valid[p]) begin
+          prrt[cdb_p_dest[p]] <= 1'b1;
+        end
+      end
+
       if (commit_valid) begin
         arch_reg_map[commit_rd] <= commit_pd;
         free_list_tail <= (commit_rd != 0) ? free_list_tail + 1 : free_list_tail;

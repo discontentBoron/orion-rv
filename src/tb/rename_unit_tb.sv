@@ -13,8 +13,11 @@ module rename_unit_tb;
     logic [REG_ADDR_WIDTH-1:0]  commit_rd;
     logic [TAG_WIDTH-1:0]       commit_pd;
     logic [TAG_WIDTH-1:0]       commit_old_pd;
-
+    logic [NUM_CDB_PORTS-1:0]   cdb_valid;
+    logic [TAG_WIDTH-1:0]       cdb_p_dest [NUM_CDB_PORTS];
     logic                       rename_stall;
+    logic                       rob_full;
+    logic                       iq_full;
     rename_dispatch_pkt_s       rename_dispatch_out;
 
     // --------------------------------------------------------
@@ -49,8 +52,12 @@ module rename_unit_tb;
         .commit_rd          (commit_rd),
         .commit_pd          (commit_pd),
         .commit_old_pd      (commit_old_pd),
+        .cdb_valid          (cdb_valid),
+        .cdb_p_dest         (cdb_p_dest),
         .rename_stall       (rename_stall),
-        .rename_dispatch_out(rename_dispatch_out)
+        .rename_dispatch_out(rename_dispatch_out),
+        .rob_full           (rob_full),
+        .iq_full            (iq_full)
     );
     `endif
     
@@ -122,6 +129,12 @@ module rename_unit_tb;
         commit_rd           = 0;
         commit_pd           = 0;
         commit_old_pd       = 0;
+        iq_full             = 0;
+        rob_full            = 0;
+        for (int i = 0; i < NUM_CDB_PORTS; i++) begin
+            cdb_valid[i] = 1'b0;
+            cdb_p_dest[i] = '0;
+        end
         repeat(2) @(posedge clk);
         rst_n = 1;
         @(posedge clk);
@@ -231,6 +244,19 @@ module rename_unit_tb;
         branch_mispredict       = 0;
     endtask
 
+    task automatic clear_cdb();
+        for (int i = 0; i < NUM_CDB_PORTS; i++) begin
+            cdb_valid[i] = 1'b0;
+        end
+    endtask
+
+    task automatic drive_cdb(
+        input int port,
+        input [TAG_WIDTH-1:0] tag
+    );
+        cdb_valid[port] = 1'b1;
+        cdb_p_dest[port] = tag;
+    endtask
     //  Every test follows the following pattern
     //  Apply combinational inputs -> Trigger positive clock edge
     //  Wait for output to propagate -> sample output at negative edge
@@ -752,7 +778,41 @@ module rename_unit_tb;
         @(posedge clk);
         @(posedge clk);
     endtask
-    
+    //  ========================================================
+    //  TEST 16: PRRT Readiness and CDB Bypassing
+    //  Verify newly allocated registers are marked unready,
+    //  and verify same-cycle CDB snooping resolves readiness.
+    //  ========================================================
+    task automatic test_cdb_readiness();
+        $display("\n=== TEST 16: PRRT Readiness and CDB Bypassing ===");
+        apply_reset();
+        clear_cdb();
+
+        // Cycle 1: Allocate p32 to x3
+        drive_instr(5'd1, 5'd2, 5'd3, 32'hC00, 1, 1);
+        @(negedge clk);
+        check_tag(rename_dispatch_out.p_dest, 6'd32, "T16C1: x3 renamed to p32");
+
+        // Cycle 2: Read x3 (p32), CDB is empty. Should be NOT ready.
+        drive_instr(5'd3, 5'd0, 5'd4, 32'hC04, 1, 0);
+        @(negedge clk);
+        check_tag(rename_dispatch_out.p_src1, 6'd32, "T16C2: src1 reads p32");
+        check(rename_dispatch_out.p_src1_rdy, 1'b0,  "T16C2: p32 is NOT ready in PRRT");
+
+        // Cycle 3: Read x3 (p32) while simultaneously broadcasting p32 on CDB port 0
+        drive_cdb(0, 6'd32);
+        drive_instr(5'd3, 5'd0, 5'd5, 32'hC08, 1, 0);
+        @(negedge clk);
+        check_tag(rename_dispatch_out.p_src1, 6'd32, "T16C3: src1 reads p32");
+        check(rename_dispatch_out.p_src1_rdy, 1'b1,  "T16C3: p32 is READY via combinational CDB bypass");
+
+        // Cycle 4: Read x3 (p32) again with CDB empty. PRRT should have updated.
+        clear_cdb();
+        drive_instr(5'd3, 5'd0, 5'd6, 32'hC0C, 1, 0);
+        @(negedge clk);
+        check_tag(rename_dispatch_out.p_src1, 6'd32, "T16C4: src1 reads p32");
+        check(rename_dispatch_out.p_src1_rdy, 1'b1,  "T16C4: p32 is READY via sequential PRRT update");
+    endtask
     // ========================================================
     // Main
     // ========================================================
@@ -779,7 +839,7 @@ module rename_unit_tb;
         test_idle_bubbles();
         test_back_to_back_commits();
         test_stall_on_illegal_instr();
-
+        test_cdb_readiness();
         $display("\n=====================================================");
         $display("  CHECKS RUN : %0d", test_count + error_count);
         $display("  PASSED     : %0d", test_count);
