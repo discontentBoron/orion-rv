@@ -9,7 +9,15 @@ package orion_pkg;
   parameter ROB_PTR = $clog2(ROB_SIZE);
   parameter IQ_SIZE = 16;
   parameter IQ_AGE_WIDTH = 8;
+  parameter NUM_CDB_PORTS = 5;
+  parameter logic [DATA_WIDTH-1:0] DEFAULT_EXCEPT_PC = 32'h0;
 
+  parameter int CDB_PORT_ALU    = 0;
+  parameter int CDB_PORT_MUL    = 1;
+  parameter int CDB_PORT_DIV    = 2;
+  parameter int CDB_PORT_BRANCH = 3;
+  parameter int CDB_PORT_LSU    = 4;
+  
   typedef enum logic [1:0] {
     EXCEPT_NONE         = 2'b00,
     EXCEPT_ILLEGAL_INST = 2'b10
@@ -23,12 +31,14 @@ package orion_pkg;
     S_TYPE = 3'b100,
     B_TYPE = 3'b101
   } instr_type_e;
+
   typedef enum logic [1:0] {
     FU_ALU,
     FU_MULDIV,
     FU_BRANCH,
     FU_LSU
   } func_unit_type_e;
+
   typedef enum logic [5:0] {
     LUI, AUIPC, 
     JAL, JALR,
@@ -138,6 +148,7 @@ package orion_pkg;
   typedef struct packed {
         logic [DATA_WIDTH-1:0]      pc;
         logic [DATA_WIDTH-1:0]      predicted_pc;
+        logic [DATA_WIDTH-1:0]      target_pc;
         logic [REG_ADDR_WIDTH-1:0]  r_dst;
         logic [TAG_WIDTH-1:0]       p_dest;
         logic [TAG_WIDTH-1:0]       old_p_dest;
@@ -161,5 +172,21 @@ package orion_pkg;
 		except_cause_e         except_cause;
 		logic                  except;
   } execute_wb_pkt_s;
+
+  typedef struct packed {
+		logic                  valid;
+		logic [TAG_WIDTH-1:0]  p_dest;
+		logic [TAG_WIDTH-1:0]  old_p_dest;
+		logic [ROB_PTR-1:0]    rob_tag;
+		logic                  reg_we;
+		logic [DATA_WIDTH-1:0] result;
+		logic [DATA_WIDTH-1:0] pc;
+		instr_class_e          instr_class;
+		except_cause_e         except_cause;
+		logic                  except;
+		logic                  mispredict;
+		logic [DATA_WIDTH-1:0] target_pc;
+    logic                  taken;
+  } branch_wb_pkt_s;
 
 endpackage
