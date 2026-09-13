@@ -129,7 +129,8 @@ module rename_unit (
           rename_dispatch_out.p_src1_rdy   <= decode_rename_in.src1_valid ? (prrt[phy_src1] || cdb_hit(phy_src1)) : 1'b1;
           rename_dispatch_out.p_src2_rdy   <= decode_rename_in.src2_valid ? (prrt[phy_src2] || cdb_hit(phy_src2)) : 1'b1;
         end else if (~free_list_empty) begin
-          $display(
+          `ifdef DEBUG
+            $display(
             "%0t head=%0d index=%0d free_entry=%0d phy_dst=%0d",
             $time,
             free_list_head,
@@ -137,6 +138,8 @@ module rename_unit (
             free_list[free_list_head[TAG_WIDTH-1:0]],
             phy_dst
           );
+          
+          `endif
           spec_reg_map[decode_rename_in.r_dst] <= phy_dst;
           free_list_head <= free_list_head + 1;
           rename_dispatch_out.valid <= 1'b1;
