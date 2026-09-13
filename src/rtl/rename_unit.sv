@@ -5,14 +5,15 @@ module rename_unit (
     input logic rst_n,
     input var decode_rename_pkt_s decode_rename_in,
     input logic branch_mispredict,
+    input logic exception_valid,
     input logic [NUM_CDB_PORTS-1:0] cdb_valid,
     input logic rob_full,
     input logic iq_full,
     input logic [TAG_WIDTH-1:0] cdb_p_dest [NUM_CDB_PORTS],
-    input logic commit_valid,  //Instruction retired by ROB
+    input logic commit_fire,  //Instruction retired by ROB
     input logic [REG_ADDR_WIDTH-1:0]  commit_rd,          //The arch. register which should hold the arch. state
     input logic [TAG_WIDTH-1:0] commit_pd,  //The phy. register which actually holds the data
-    input logic [TAG_WIDTH-1:0]       commit_old_pd,      //The old phy. register before renaming, to release back to free list
+    input logic [TAG_WIDTH-1:0]       commit_old_pd,      //The old phy. register before renaming, to release back to free list 
     output logic rename_stall,
     output rename_dispatch_pkt_s rename_dispatch_out
 );
@@ -62,7 +63,7 @@ module rename_unit (
         spec_reg_map[i] <= i;
       end
     end else begin
-      if (branch_mispredict) begin
+      if (branch_mispredict || exception_valid) begin
         spec_reg_map                     <= arch_reg_map;
         free_list_head                   <= free_list_head_arch;
         rename_dispatch_out.old_p_dest   <= 'bx;
@@ -183,7 +184,7 @@ module rename_unit (
         end
       end
 
-      if (commit_valid) begin
+      if (commit_fire) begin
         arch_reg_map[commit_rd] <= commit_pd;
         free_list_tail <= (commit_rd != 0) ? free_list_tail + 1 : free_list_tail;
         free_list_head_arch <= (commit_rd != 0) ? free_list_head_arch + 1 : free_list_head_arch;

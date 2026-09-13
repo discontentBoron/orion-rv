@@ -9,21 +9,27 @@ module reorder_buffer(
     output  logic   [ROB_PTR-1:0]           rob_tag_out,
     output  logic                           rob_full,
 
-    input   logic                           cdb_valid,
-    input   logic   [ROB_PTR-1:0]           cdb_rob_tag,
-    input   logic                           cdb_mispredict,
-    input   logic                           cdb_exception,
-    input   except_cause_e                  cdb_cause,
+    input   logic   [NUM_CDB_PORTS-1:0]     cdb_valid,
+    input   logic   [ROB_PTR-1:0]           cdb_rob_tag [NUM_CDB_PORTS],
+    input   logic   [NUM_CDB_PORTS-1:0]     cdb_mispredict,
+    input   logic   [DATA_WIDTH-1:0]        cdb_target_pc [NUM_CDB_PORTS],
+    input   logic   [NUM_CDB_PORTS-1:0]     cdb_exception,
+    input   except_cause_e                  cdb_cause [NUM_CDB_PORTS],
 
     output  logic                           commit_valid,
     output  logic [REG_ADDR_WIDTH-1:0]      commit_rd,
     output  logic [TAG_WIDTH-1:0]           commit_pd,
     output  logic [TAG_WIDTH-1:0]           commit_old_pd,
 
+    output  logic                           commit_fire,
+    output  logic [REG_ADDR_WIDTH-1:0]      commit_rd_e,
+    output  logic [TAG_WIDTH-1:0]           commit_pd_e,
+    output  logic [TAG_WIDTH-1:0]           commit_old_pd_e,
     output  logic                           store_commit,
 
     output  logic                           branch_mispredict,
     output  logic                           exception_valid,
+    output  logic [DATA_WIDTH-1:0]          redirect_pc,
     output  except_cause_e                  exception_cause,
     output  logic [DATA_WIDTH-1:0]          exception_pc
 
@@ -37,8 +43,25 @@ module reorder_buffer(
     assign flushing     = head_entry.done && !rob_empty && (head_entry.except || head_entry.mispredict);
     assign rob_tag_out  = tail[ROB_PTR-1:0];
     assign rob_empty    = (head == tail);
-    assign rob_full     = (head[ROB_PTR] != tail[ROB_PTR]) && (head[ROB_PTR-1:0] == tail[ROB_PTR-1:0]);;
+    assign rob_full     = (head[ROB_PTR] != tail[ROB_PTR]) && (head[ROB_PTR-1:0] == tail[ROB_PTR-1:0]);
     assign head_entry   = rob_mem[head[ROB_PTR-1:0]];
+
+    assign commit_fire     = !rob_empty && head_entry.done && !head_entry.except && head_entry.reg_we;
+    assign commit_rd_e     = head_entry.r_dst;
+    assign commit_pd_e     = head_entry.p_dest;
+    assign commit_old_pd_e = head_entry.old_p_dest;
+
+    function automatic logic tag_in_window(input logic [ROB_PTR-1:0] tag);
+        logic [ROB_PTR-1:0] h, t;
+        h = head[ROB_PTR-1:0];
+        t = tail[ROB_PTR-1:0];
+        if (rob_empty)
+            tag_in_window = 1'b0;
+        else if (head[ROB_PTR] == tail[ROB_PTR]) 
+            tag_in_window = (tag >= h) && (tag < t);
+        else
+            tag_in_window = (tag >= h) || (tag < t);
+    endfunction
     // Dispatch and Allocation
     always_ff @(posedge clk) begin
         if (~rst_n) begin
@@ -52,6 +75,7 @@ module reorder_buffer(
             branch_mispredict   <= 1'b0;
             exception_valid     <= 1'b0;
             exception_cause     <= EXCEPT_NONE;
+            redirect_pc         <= DEFAULT_EXCEPT_PC;
             exception_pc        <= '0;
             for(int i = 0; i < ROB_SIZE; i++) begin
                 rob_mem[i] <= 'b0;
@@ -66,6 +90,7 @@ module reorder_buffer(
             exception_valid   <= 1'b0;
             exception_cause   <= EXCEPT_NONE;
             exception_pc      <= '0;
+            redirect_pc       <= DEFAULT_EXCEPT_PC;
             // Exception Occured, HIGHEST PRIORITY
             if (!rob_empty && head_entry.done && head_entry.except) begin
                 exception_valid     <= 1'b1;
@@ -77,6 +102,7 @@ module reorder_buffer(
             // Mispredict and Commit
             end else if (!rob_empty && head_entry.done && head_entry.mispredict && !head_entry.except) begin
                 branch_mispredict <= 1'b1;
+                redirect_pc   <= head_entry.target_pc;
                 // JAL/JALR write rd still commit the register result
                 if (head_entry.reg_we) begin
                     commit_valid  <= 1'b1;
@@ -114,15 +140,14 @@ module reorder_buffer(
                 tail                                <= tail + 1;
             end
             // CDB Writeback
-            if (cdb_valid) begin
-                // Valid window check: entry is live if it's between head and tail
-                // This is a circular buffer — check using the extra MSB pointer scheme
-                // For now: unconditional write; add window check when issue queue is built
-                // and CDB tag provenance is clearer. TODO: revisit.
-                rob_mem[cdb_rob_tag].done         <= 1'b1;
-                rob_mem[cdb_rob_tag].mispredict   <= cdb_mispredict;
-                rob_mem[cdb_rob_tag].except       <= cdb_exception;
-                rob_mem[cdb_rob_tag].except_cause <= cdb_cause;
+            for (int p = 0; p < NUM_CDB_PORTS; p++) begin
+                if (cdb_valid[p] && tag_in_window(cdb_rob_tag[p])) begin
+                    rob_mem[cdb_rob_tag[p]].done         <= 1'b1;
+                    rob_mem[cdb_rob_tag[p]].mispredict   <= cdb_mispredict[p];
+                    rob_mem[cdb_rob_tag[p]].except       <= cdb_exception[p];
+                    rob_mem[cdb_rob_tag[p]].except_cause <= cdb_cause[p];
+                    rob_mem[cdb_rob_tag[p]].target_pc    <= cdb_target_pc[p];
+                end
             end
             `ifdef DEBUG
                 if (rob_full) $display("ROB FULL at time %t", $time);
