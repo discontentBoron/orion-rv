@@ -24,8 +24,8 @@
 import orion_pkg::*;
 
 module fetch_unit #(
-    parameter int IMEM_DEPTH      = 256,          // words
-    parameter      IMEM_INIT_FILE = ""             // optional $readmemh file
+    parameter int   IMEM_DEPTH      = 256,          // words
+    parameter       IMEM_INIT_FILE = ""             // optional $readmemh file
 ) (
     input  logic                    clk,
     input  logic                    rst_n,

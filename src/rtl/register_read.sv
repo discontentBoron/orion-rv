@@ -37,7 +37,7 @@ always_ff @(posedge clk or negedge rst_n) begin
                 hit[p] = wb_en[p] && (wb_tag[p] == r[TAG_WIDTH-1:0]);
 
             if (|hit) begin
-                unique case (1'b1)
+                unique case (1'b1) // @suppress "Default clause missing from case statement"
                     hit[0]: prf[r] <= wb_data[0];
                     hit[1]: prf[r] <= wb_data[1];
                     hit[2]: prf[r] <= wb_data[2];
