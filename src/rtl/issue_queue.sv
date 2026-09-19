@@ -125,8 +125,8 @@ module issue_queue (
     if (any_ready) begin
       issue_pkt.p_src1         = iq_mem[sel_idx].p_src1;
       issue_pkt.p_src2         = iq_mem[sel_idx].p_src2;
-      issue_pkt.p_src1_valid   = 1'b1;
-      issue_pkt.p_src2_valid   = 1'b1;
+      issue_pkt.p_src1_valid   = iq_mem[sel_idx].p_src1_valid;
+      issue_pkt.p_src2_valid   = iq_mem[sel_idx].p_src2_valid;
       issue_pkt.p_dest         = iq_mem[sel_idx].p_dest;
       issue_pkt.old_p_dest     = iq_mem[sel_idx].old_p_dest;
       issue_pkt.reg_we         = iq_mem[sel_idx].reg_we;
