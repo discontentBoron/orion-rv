@@ -26,6 +26,7 @@ module reorder_buffer(
     output  logic [TAG_WIDTH-1:0]           commit_pd_e,
     output  logic [TAG_WIDTH-1:0]           commit_old_pd_e,
     output  logic                           store_commit,
+    output  logic [ROB_PTR-1:0]             rob_head_tag,
 
     output  logic                           branch_mispredict,
     output  logic                           exception_valid,
@@ -45,12 +46,11 @@ module reorder_buffer(
     assign rob_empty    = (head == tail);
     assign rob_full     = (head[ROB_PTR] != tail[ROB_PTR]) && (head[ROB_PTR-1:0] == tail[ROB_PTR-1:0]);
     assign head_entry   = rob_mem[head[ROB_PTR-1:0]];
-
     assign commit_fire     = !rob_empty && head_entry.done && !head_entry.except && head_entry.reg_we;
     assign commit_rd_e     = head_entry.r_dst;
     assign commit_pd_e     = head_entry.p_dest;
     assign commit_old_pd_e = head_entry.old_p_dest;
-
+    assign rob_head_tag     = head[ROB_PTR-1:0];
     function automatic logic tag_in_window(input logic [ROB_PTR-1:0] tag);
         logic [ROB_PTR-1:0] h, t;
         h = head[ROB_PTR-1:0];
@@ -125,7 +125,7 @@ module reorder_buffer(
                 head <= head + 1;
             end
             // Dispatch 
-            if (!flushing && dispatch_in.valid && !rob_full && !iq_full) begin
+            if (!flushing && !branch_mispredict && !exception_valid && dispatch_in.valid && !rob_full && !iq_full) begin
                 rob_mem[rob_tag_out].r_dst          <= dispatch_in.r_dst;
                 rob_mem[rob_tag_out].p_dest         <= dispatch_in.p_dest;
                 rob_mem[rob_tag_out].old_p_dest     <= dispatch_in.old_p_dest;
@@ -149,10 +149,10 @@ module reorder_buffer(
                     rob_mem[cdb_rob_tag[p]].target_pc    <= cdb_target_pc[p];
                 end
             end
-            `ifdef DEBUG
-                if (rob_full) $display("ROB FULL at time %t", $time);
-                if (iq_full)  $display("ROB dispatch blocked by IQ FULL at time %t", $time);
-            `endif
+            // `ifdef DEBUG
+            //     if (rob_full) $display("ROB FULL at time %t", $time);
+            //     if (iq_full)  $display("ROB dispatch blocked by IQ FULL at time %t", $time);
+            // `endif
             
         end
     end

@@ -7,6 +7,7 @@ module issue_queue (
 
     input  rename_dispatch_pkt_s               dispatch_in,
     input  logic                 [ROB_PTR-1:0] dispatch_rob_tag,
+    input   logic [ROB_PTR-1:0]                 rob_head_tag,
     input   logic                              rob_full,
     output logic                               iq_full,
 
@@ -18,7 +19,6 @@ module issue_queue (
 
     input logic div_ready,
     input logic lsu_ready,
-
     output logic                               issue_valid,
     output rename_dispatch_pkt_s               issue_pkt,
     output logic                 [ROB_PTR-1:0] issue_rob_tag
@@ -45,7 +45,8 @@ module issue_queue (
   logic [        IQ_SIZE-1:0] ready_vec;
   logic                       any_ready;
   logic [$clog2(IQ_SIZE)-1:0] sel_idx;
-
+  logic lsu_issued_q;
+  logic div_issued_q;
   // Binary-tree oldest-ready select: IQ_SIZE-1 comparators total instead of
   // IQ_SIZE*(IQ_SIZE-1) for the old all-pairs matrix. cand[0][*] are the
   // leaves (one per IQ entry); each level pairs its inputs and keeps the
@@ -74,8 +75,8 @@ module issue_queue (
   // single-outstanding-op FSMs and expose ready/busy.
   function automatic logic fu_available(input func_unit_type_e fu, input exec_unit_opcode_e uop);
     case (fu)
-      FU_LSU:    fu_available = lsu_ready;
-      FU_MULDIV: fu_available = uop inside {DIV, DIVU, REM, REMU} ? div_ready : 1'b1;
+      FU_LSU:    fu_available = lsu_ready && !lsu_issued_q;
+      FU_MULDIV: fu_available = uop inside {DIV, DIVU, REM, REMU} ? (div_ready && !div_issued_q) : 1'b1;
       default:   fu_available = 1'b1;  // FU_ALU, FU_BRANCH
     endcase
   endfunction
@@ -83,7 +84,8 @@ module issue_queue (
   always_comb begin
     for (int i = 0; i < IQ_SIZE; i++)
     ready_vec[i] = iq_mem[i].valid & iq_mem[i].p_src1_ready & iq_mem[i].p_src2_ready &
-                   fu_available(iq_mem[i].func_unit_type, iq_mem[i].exec_unit_uop);
+                   fu_available(iq_mem[i].func_unit_type, iq_mem[i].exec_unit_uop) & 
+                   ((iq_mem[i].instr_class != INSTR_STORE) | (iq_mem[i].rob_tag == rob_head_tag));
   end
 
   always_comb begin
@@ -147,15 +149,19 @@ module issue_queue (
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
       global_counter <= '0;
+      lsu_issued_q    <=  1'b0;
+      div_issued_q    <=  1'b0;
       for (int i = 0; i < IQ_SIZE; i++) iq_mem[i].valid <= 1'b0;
     end else begin
+      lsu_issued_q  <=  issue_valid && issue_pkt.func_unit_type == FU_LSU;
+      div_issued_q  <=  issue_valid && issue_pkt.func_unit_type == FU_MULDIV && (issue_pkt.exec_unit_uop inside {DIV, DIVU, REM, REMU});
       if (dispatch_in.valid && !iq_full && !rob_full && !branch_mispredict && !exception_valid) begin
         iq_mem[free_slot_idx].p_src1          <= dispatch_in.p_src1;
         iq_mem[free_slot_idx].p_src2          <= dispatch_in.p_src2;
-        iq_mem[free_slot_idx].p_src1_ready    <= !dispatch_in.p_src1_valid ||
-                                               dispatch_in.p_src1_rdy;
-        iq_mem[free_slot_idx].p_src2_ready    <= !dispatch_in.p_src2_valid ||
-                                                dispatch_in.p_src2_rdy;
+        iq_mem[free_slot_idx].p_src1_ready <= !dispatch_in.p_src1_valid ||
+                                               dispatch_in.p_src1_rdy   || cdb_hit(dispatch_in.p_src1);
+        iq_mem[free_slot_idx].p_src2_ready <= !dispatch_in.p_src2_valid ||
+                                               dispatch_in.p_src2_rdy   ||  cdb_hit(dispatch_in.p_src2);
         iq_mem[free_slot_idx].p_src1_valid    <= dispatch_in.p_src1_valid;
         iq_mem[free_slot_idx].p_src2_valid    <= dispatch_in.p_src2_valid;
         iq_mem[free_slot_idx].p_dest          <= dispatch_in.p_dest;
