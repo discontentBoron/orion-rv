@@ -47,6 +47,7 @@ module issue_queue (
   logic [$clog2(IQ_SIZE)-1:0] sel_idx;
   logic lsu_issued_q;
   logic div_issued_q;
+
   // Binary-tree oldest-ready select: IQ_SIZE-1 comparators total instead of
   // IQ_SIZE*(IQ_SIZE-1) for the old all-pairs matrix. cand[0][*] are the
   // leaves (one per IQ entry); each level pairs its inputs and keeps the
@@ -69,7 +70,40 @@ module issue_queue (
       end
     end
   end
-
+  //////////////////////////////////////////////////////////////////////
+  // Load-Store Ordering
+  //////////////////////////////////////////////////////////////////////
+  typedef struct packed {
+    logic                    v;
+    logic [IQ_AGE_WIDTH-1:0] age;
+  } st_cand_s;
+  st_cand_s sc [NUM_LEVELS+1][IQ_SIZE];
+  logic [IQ_SIZE-1:0]       load_blocked;
+  logic                     have_store;
+  logic [IQ_AGE_WIDTH-1:0]  oldest_store_age;
+  always_comb begin 
+    for (int i = 0; i < IQ_SIZE; i++) begin
+      sc[0][i].v   = iq_mem[i].valid && (iq_mem[i].instr_class == INSTR_STORE);
+      sc[0][i].age = iq_mem[i].age_tag;
+    end
+    for (int lvl = 0; lvl < NUM_LEVELS; lvl++) begin
+      automatic int n = IQ_SIZE >> lvl;
+      for (int k = 0; k < n / 2; k++) begin
+        automatic st_cand_s a, b;
+        a = sc[lvl][2*k];
+        b = sc[lvl][2*k+1];
+        if (a.v && b.v) sc[lvl+1][k] = ($signed(b.age - a.age) < 0) ? b : a;
+        else if (a.v)   sc[lvl+1][k] = a;
+        else            sc[lvl+1][k] = b;
+      end
+    end
+    have_store       = sc[NUM_LEVELS][0].v;
+    oldest_store_age = sc[NUM_LEVELS][0].age;
+    for (int i = 0; i < IQ_SIZE; i++)
+      load_blocked[i] = have_store && (iq_mem[i].instr_class == INSTR_LOAD)
+                        && ($signed(iq_mem[i].age_tag - oldest_store_age) > 0);
+  end
+  //////////////////////////////////////////////////////////////////////
   // Gates issue-select against downstream FU busy state. ALU/BRANCH are
   // fixed-latency and pipelined so they always accept; DIV and LSU are
   // single-outstanding-op FSMs and expose ready/busy.
@@ -85,7 +119,8 @@ module issue_queue (
     for (int i = 0; i < IQ_SIZE; i++)
     ready_vec[i] = iq_mem[i].valid & iq_mem[i].p_src1_ready & iq_mem[i].p_src2_ready &
                    fu_available(iq_mem[i].func_unit_type, iq_mem[i].exec_unit_uop) & 
-                   ((iq_mem[i].instr_class != INSTR_STORE) | (iq_mem[i].rob_tag == rob_head_tag));
+                   ((iq_mem[i].instr_class != INSTR_STORE) | (iq_mem[i].rob_tag == rob_head_tag)) &
+                   !load_blocked[i];
   end
 
   always_comb begin
