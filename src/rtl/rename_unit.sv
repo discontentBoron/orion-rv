@@ -43,7 +43,7 @@ module rename_unit (
     end
     cdb_hit = |hits;
   endfunction
-  always_ff @(posedge clk) begin
+  always_ff @(posedge clk or negedge rst_n) begin
     if (~rst_n) begin
       rename_dispatch_out <= 'b0;
       for (int i = 0; i <= ARCH_REGS - 1; i++) begin
@@ -80,6 +80,8 @@ module rename_unit (
         for (int i = 0; i < ARCH_REGS; i++) prrt[arch_reg_map[i]] <= 1'b1;
       end else if (rename_dispatch_out.valid && !dispatch_ready) begin 
           rename_dispatch_out <= rename_dispatch_out;
+          if (cdb_hit(rename_dispatch_out.p_src1)) rename_dispatch_out.p_src1_rdy <= 1'b1;
+          if (cdb_hit(rename_dispatch_out.p_src2)) rename_dispatch_out.p_src2_rdy <= 1'b1;
           //rename_dispatch_r_dst <= rename_dispatch_r_dst;
       end else if (decode_rename_in.valid) begin
         rename_dispatch_out.r_dst          <= decode_rename_in.r_dst;
@@ -129,17 +131,16 @@ module rename_unit (
           rename_dispatch_out.p_src1_rdy   <= decode_rename_in.src1_valid ? (prrt[phy_src1] || cdb_hit(phy_src1)) : 1'b1;
           rename_dispatch_out.p_src2_rdy   <= decode_rename_in.src2_valid ? (prrt[phy_src2] || cdb_hit(phy_src2)) : 1'b1;
         end else if (~free_list_empty) begin
-          `ifdef DEBUG
-            $display(
-            "%0t head=%0d index=%0d free_entry=%0d phy_dst=%0d",
-            $time,
-            free_list_head,
-            free_list_head[TAG_WIDTH-1:0],
-            free_list[free_list_head[TAG_WIDTH-1:0]],
-            phy_dst
-          );
-          
-          `endif
+          // `ifdef DEBUG
+          //   $display(
+          //     "%0t head=%0d index=%0d free_entry=%0d phy_dst=%0d",
+          //     $time,
+          //     free_list_head,
+          //     free_list_head[TAG_WIDTH-1:0],
+          //     free_list[free_list_head[TAG_WIDTH-1:0]],
+          //     phy_dst
+          //   );
+          // `endif
           spec_reg_map[decode_rename_in.r_dst] <= phy_dst;
           free_list_head <= free_list_head + 1;
           rename_dispatch_out.valid <= 1'b1;
@@ -227,21 +228,21 @@ module rename_unit (
   assign rename_stall = (rename_dispatch_out.valid & ~dispatch_ready) |
                         (decode_rename_in.valid & ( rob_full | iq_full |
                         ((decode_rename_in.except_cause == EXCEPT_NONE) & ~is_r_dst_zero & free_list_empty )));
-  `ifdef DEBUG
-    always_ff @(posedge clk) begin
-      if (rename_stall) begin
-        $display(
-            "%0t HOLD: pc=%08h pd=%0d s1=%0d v1=%b s2=%0d v2=%b",
-            $time,
-            rename_dispatch_out.pc,
-            rename_dispatch_out.p_dest,
-            rename_dispatch_out.p_src1,
-            rename_dispatch_out.p_src1_valid,
-            rename_dispatch_out.p_src2,
-            rename_dispatch_out.p_src2_valid
-        );
-      end
-    end
-  `endif
+  // `ifdef DEBUG
+  //   always_ff @(posedge clk) begin
+  //     if (rename_stall) begin
+  //       $display(
+  //           "%0t HOLD: pc=%08h pd=%0d s1=%0d v1=%b s2=%0d v2=%b",
+  //           $time,
+  //           rename_dispatch_out.pc,
+  //           rename_dispatch_out.p_dest,
+  //           rename_dispatch_out.p_src1,
+  //           rename_dispatch_out.p_src1_valid,
+  //           rename_dispatch_out.p_src2,
+  //           rename_dispatch_out.p_src2_valid
+  //       );
+  //     end
+  //   end
+  // `endif
   
 endmodule
