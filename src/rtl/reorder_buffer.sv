@@ -63,7 +63,7 @@ module reorder_buffer(
             tag_in_window = (tag >= h) || (tag < t);
     endfunction
     // Dispatch and Allocation
-    always_ff @(posedge clk) begin
+    always_ff @(posedge clk or negedge rst_n) begin
         if (~rst_n) begin
             head                <= '0;
             tail                <= '0;
@@ -141,7 +141,7 @@ module reorder_buffer(
             end
             // CDB Writeback
             for (int p = 0; p < NUM_CDB_PORTS; p++) begin
-                if (cdb_valid[p] && tag_in_window(cdb_rob_tag[p])) begin
+                if (cdb_valid[p] && !branch_mispredict && !exception_valid && tag_in_window(cdb_rob_tag[p])) begin
                     rob_mem[cdb_rob_tag[p]].done         <= 1'b1;
                     rob_mem[cdb_rob_tag[p]].mispredict   <= cdb_mispredict[p];
                     rob_mem[cdb_rob_tag[p]].except       <= cdb_exception[p];
