@@ -37,12 +37,13 @@ always_ff @(posedge clk or negedge rst_n) begin
                 hit[p] = wb_en[p] && (wb_tag[p] == r[TAG_WIDTH-1:0]);
 
             if (|hit) begin
-                unique case (1'b1) // @suppress "Default clause missing from case statement"
+                unique case (1'b1)
                     hit[0]: prf[r] <= wb_data[0];
                     hit[1]: prf[r] <= wb_data[1];
                     hit[2]: prf[r] <= wb_data[2];
                     hit[3]: prf[r] <= wb_data[3];
                     hit[4]: prf[r] <= wb_data[4];
+                    default: /* */;
                 endcase
             end
         end
@@ -56,28 +57,32 @@ function automatic logic [NUM_CDB_PORTS-1:0] fwd_hit_vec(input logic [TAG_WIDTH-
         fwd_hit_vec[p] = cdb_valid[p] && (cdb_tag[p] == tag);
 endfunction
 
-logic [NUM_CDB_PORTS-1:0] hit1, hit2;
+// logic [NUM_CDB_PORTS-1:0] hit1, hit2;
 
 
 // Raw PRF reads (combinational)
 assign prf_src1_raw = prf[dispatch_in.p_src1];
 assign prf_src2_raw = prf[dispatch_in.p_src2];
 
-always_comb begin
-    automatic logic [DATA_WIDTH-1:0] mux1, mux2;
-    hit1 = fwd_hit_vec(dispatch_in.p_src1);
-    hit2 = fwd_hit_vec(dispatch_in.p_src2);
+// always_comb begin
+//     automatic logic [DATA_WIDTH-1:0] mux1, mux2;
+//     hit1 = fwd_hit_vec(dispatch_in.p_src1);
+//     hit2 = fwd_hit_vec(dispatch_in.p_src2);
     
-    mux1 = (|hit1) ? '0 : prf_src1_raw;
-    mux2 = (|hit2) ? '0 : prf_src2_raw;
+//     mux1 = (|hit1) ? '0 : prf_src1_raw;
+//     mux2 = (|hit2) ? '0 : prf_src2_raw;
 
-    for (int p = 0; p < NUM_CDB_PORTS; p++) begin
-        mux1 |= hit1[p] ? cdb_data[p] : '0;
-        mux2 |= hit2[p] ? cdb_data[p] : '0;
-    end
+//     for (int p = 0; p < NUM_CDB_PORTS; p++) begin
+//         mux1 |= hit1[p] ? cdb_data[p] : '0;
+//         mux2 |= hit2[p] ? cdb_data[p] : '0;
+//     end
 
-    src1_data_comb = (!dispatch_in.p_src1_valid || dispatch_in.p_src1 == '0) ? '0 : mux1;
-    src2_data_comb = (!dispatch_in.p_src2_valid || dispatch_in.p_src2 == '0) ? '0 : mux2;
+//     src1_data_comb = (!dispatch_in.p_src1_valid || dispatch_in.p_src1 == '0) ? '0 : mux1;
+//     src2_data_comb = (!dispatch_in.p_src2_valid || dispatch_in.p_src2 == '0) ? '0 : mux2;
+// end
+always_comb begin
+    src1_data_comb = (!dispatch_in.p_src1_valid || dispatch_in.p_src1 == '0) ? '0 : prf_src1_raw;
+    src2_data_comb = (!dispatch_in.p_src2_valid || dispatch_in.p_src2 == '0) ? '0 : prf_src2_raw;
 end
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
