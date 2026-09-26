@@ -30,7 +30,7 @@ module mul (
     assign b_neg_comb = regread_in.src2_data[31];
     assign  p12_comb = p1_comb + p2_comb;
     assign a_corr_val_comb = (a_neg_comb && (regread_in.exec_unit_uop == MULH | regread_in.exec_unit_uop == MULHSU)) ? regread_in.src2_data : 32'd0;
-    assign b_corr_val_comb = (b_neg_comb && (regread_in.exec_unit_uop == MULH | regread_in.exec_unit_uop == MULHSU)) ? regread_in.src1_data : 32'd0;
+    assign b_corr_val_comb = (b_neg_comb && (regread_in.exec_unit_uop == MULH)) ? regread_in.src1_data : 32'd0;
     assign total_corr_comb = a_corr_val_comb + b_corr_val_comb;
 
     logic                    ms1_valid;
