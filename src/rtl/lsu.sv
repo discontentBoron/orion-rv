@@ -1,37 +1,6 @@
 `timescale 1ns / 1ps
 import orion_pkg::*;
 
-// Resolves LB/LH/LW/LBU/LHU/SB/SH/SW.
-//
-// Memory model: a ready/valid handshake rather than fixed latency, so a
-// cache (not yet built) can sit behind this interface later without any
-// change here. Requests are posted one at a time -- this unit supports a
-// single outstanding memory transaction, matching every other functional
-// unit in this design being single-issue.
-//
-// Store timing: stores are assumed to only ever be issued to this unit
-// once they are the oldest (commit-eligible) in-flight instruction --
-// enforced upstream by the issue queue, not by this module. That lets a
-// store's memory write happen immediately on execute, with no store
-// buffer needed here. (See design discussion: this is "Option A" --
-// simpler than a real store queue, revisit alongside the cache.)
-//
-// Misaligned accesses are not detected or specially handled: a load/store
-// is assumed to stay within a single aligned 32-bit word. Address bits
-// [1:0] select the byte lane; anything crossing a word boundary is
-// unsupported, by design choice, not yet an exception.
-//
-// Flush: once mem_req_valid has been asserted for a request, it is held
-// asserted with a stable payload until memory accepts it -- standard
-// ready/valid convention forbids withdrawing a request early, since real
-// memory/cache logic may already be acting on having seen valid=1 even
-// before it asserts ready. So a flush at any point (whether the request
-// has been accepted yet or not) never cancels the transaction outright;
-// it only marks the eventual result for discard (wb valid suppressed)
-// once the transaction completes normally. Per the note above, a store
-// should never legitimately need to be flushed at all (by the time it
-// reaches this unit it is already the oldest in-flight instruction), but
-// the same discard-not-cancel handling applies to it too, defensively.
 module lsu (
     input   logic   clk,
     input   logic   rst_n,
@@ -41,20 +10,30 @@ module lsu (
     output logic                lsu_ready,
 
     output execute_wb_pkt_s lsu_wb_out,
+    // --- Store buffer: enqueue (stores) ---
+    output logic                  sb_enq_valid,
+    output logic [DATA_WIDTH-1:0] sb_enq_addr,
+    output logic [DATA_WIDTH-1:0] sb_enq_wdata,
+    output logic [3:0]            sb_enq_wstrb,
+
+    // --- Store buffer: lookup (loads) ---
+    output logic [DATA_WIDTH-1:0] sb_ld_addr,
+    output logic [3:0]            sb_ld_mask,
+    input  logic                  sb_ld_hit,
+    input  logic                  sb_ld_fwd_ok,
+    input  logic [DATA_WIDTH-1:0] sb_ld_fwd_data,
 
     // --- Memory interface ---
     output logic                  mem_req_valid,
-    output logic                  mem_req_we,
     output logic [DATA_WIDTH-1:0] mem_req_addr,
-    output logic [DATA_WIDTH-1:0] mem_req_wdata,
-    output logic [3:0]            mem_req_wstrb,
     input  logic                  mem_req_ready,
     input  logic                  mem_resp_valid,
     input  logic [DATA_WIDTH-1:0] mem_resp_rdata
 );
 
-    typedef enum logic [1:0] {
+    typedef enum logic [2:0] {
         LSU_IDLE,
+        LSU_SB_WAIT,
         LSU_REQ,
         LSU_WAIT_RESP,
         LSU_DONE
@@ -73,9 +52,6 @@ module lsu (
     logic                  l_except;
     exec_unit_opcode_e     l_uop;
     logic [DATA_WIDTH-1:0] l_addr;
-    logic [DATA_WIDTH-1:0] l_wdata;
-    logic [3:0]            l_wstrb;
-    logic                  l_is_store;
     logic                  l_squashed;   // flushed while a request was already in flight
     logic [DATA_WIDTH-1:0] l_rdata;      // latched response data (valid only alongside mem_resp_valid)
 
@@ -84,10 +60,10 @@ module lsu (
     assign addr_sum_comb = regread_in.src1_data + regread_in.imm_val;
     assign byte_off      = addr_sum_comb[1:0];
 
-    logic accept;
+    logic accept, is_store_in;
     assign lsu_ready = (state == LSU_IDLE);
     assign accept    = lsu_ready & regread_in.valid & ~flush;
-
+    assign is_store_in = (regread_in.instr_class == INSTR_STORE);
     // --- Byte-lane encode for stores (combinational, using un-latched regread_in) ---
     logic [DATA_WIDTH-1:0] wdata_comb;
     logic [3:0]            wstrb_comb;
@@ -100,7 +76,25 @@ module lsu (
         endcase
         wdata_comb = regread_in.src2_data << (byte_off * 8);
     end
+    assign sb_enq_valid = accept & is_store_in & ~regread_in.except;
+    assign sb_enq_addr  = addr_sum_comb;
+    assign sb_enq_wdata = wdata_comb;
+    assign sb_enq_wstrb = wstrb_comb;
 
+    // --- Store-buffer lookup for loads ---
+    // In IDLE the lookup uses the incoming (un-latched) request; while parked
+    // in LSU_SB_WAIT it re-uses the latched one.
+    function automatic logic [3:0] load_mask(input exec_unit_opcode_e u, input logic [1:0] off);
+        unique case (u)
+        LB, LBU: load_mask = 4'b0001 << off;
+        LH, LHU: load_mask = 4'b0011 << off;
+        default: load_mask = 4'b1111;
+        endcase
+    endfunction
+
+    assign sb_ld_addr = (state == LSU_IDLE) ? addr_sum_comb : l_addr;
+    assign sb_ld_mask = (state == LSU_IDLE) ? load_mask(regread_in.exec_unit_uop, byte_off)
+                                            : load_mask(l_uop, l_addr[1:0]);
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             state          <= LSU_IDLE;
@@ -114,18 +108,12 @@ module lsu (
             l_except       <= 1'b0;
             l_uop          <= LW;
             l_addr         <= '0;
-            l_wdata        <= '0;
-            l_wstrb        <= '0;
-            l_is_store     <= 1'b0;
             l_squashed     <= 1'b0;
             l_rdata        <= '0;
             lsu_wb_out     <= '0;
 
             mem_req_valid  <= 1'b0;
-            mem_req_we     <= 1'b0;
             mem_req_addr   <= '0;
-            mem_req_wdata  <= '0;
-            mem_req_wstrb  <= '0;
         end else begin
             lsu_wb_out.valid <= 1'b0;  // default: pulse for exactly one cycle
             mem_req_valid    <= 1'b0;  // default: pulse for exactly one cycle
@@ -147,7 +135,22 @@ module lsu (
                         lsu_wb_out.instr_class  <= regread_in.instr_class;
                         lsu_wb_out.except_cause <= regread_in.cause;
                         lsu_wb_out.except       <= 1'b1;
+                    end else if (is_store_in) begin
+                        // Store: already enqueued into the store buffer this
+                        // cycle (sb_enq_*). Report completion to the ROB now.
+                        // State stays IDLE.
+                        lsu_wb_out.valid        <= 1'b1;
+                        lsu_wb_out.p_dest       <= regread_in.p_dest;
+                        lsu_wb_out.old_p_dest   <= regread_in.old_p_dest;
+                        lsu_wb_out.rob_tag      <= regread_in.rob_tag;
+                        lsu_wb_out.reg_we       <= 1'b0;
+                        lsu_wb_out.result       <= '0;
+                        lsu_wb_out.pc           <= regread_in.pc;
+                        lsu_wb_out.instr_class  <= regread_in.instr_class;
+                        lsu_wb_out.except_cause <= regread_in.cause;
+                        lsu_wb_out.except       <= 1'b0;
                     end else begin
+                        // Load
                         l_p_dest       <= regread_in.p_dest;
                         l_old_p_dest   <= regread_in.old_p_dest;
                         l_rob_tag      <= regread_in.rob_tag;
@@ -158,18 +161,36 @@ module lsu (
                         l_except       <= 1'b0;
                         l_uop          <= regread_in.exec_unit_uop;
                         l_addr         <= addr_sum_comb;
-                        l_wdata        <= wdata_comb;
-                        l_wstrb        <= wstrb_comb;
-                        l_is_store     <= (regread_in.instr_class == INSTR_STORE);
                         l_squashed     <= 1'b0;
 
-                        mem_req_valid  <= 1'b1;
-                        mem_req_we     <= (regread_in.instr_class == INSTR_STORE);
-                        mem_req_addr   <= addr_sum_comb;
-                        mem_req_wdata  <= wdata_comb;
-                        mem_req_wstrb  <= wstrb_comb;
-                        state          <= LSU_REQ;
+                        if (!sb_ld_hit) begin
+                            mem_req_valid  <= 1'b1;
+                            mem_req_addr   <= addr_sum_comb;
+                            state          <= LSU_REQ;
+                        end else if (sb_ld_fwd_ok) begin
+                            l_rdata        <= sb_ld_fwd_data;
+                            state          <= LSU_DONE;
+                        end else begin
+                            state          <= LSU_SB_WAIT;
+                        end
                     end
+                end
+            end
+
+            LSU_SB_WAIT: begin
+                // Partial overlap with an in-flight store: wait for it to
+                // drain. Nothing has been presented to memory yet, so on a
+                // flush the load can simply be dropped.
+                if (flush) begin
+                    l_squashed <= 1'b1;
+                    state      <= LSU_DONE;
+                end else if (!sb_ld_hit) begin
+                    mem_req_valid <= 1'b1;
+                    mem_req_addr  <= l_addr;
+                    state         <= LSU_REQ;
+                end else if (sb_ld_fwd_ok) begin
+                    l_rdata <= sb_ld_fwd_data;
+                    state   <= LSU_DONE;
                 end
             end
 
@@ -178,37 +199,21 @@ module lsu (
 
                 if (mem_req_ready) begin
                     // Request accepted by memory.
-                    if (l_is_store) begin
-                        state <= LSU_DONE;   // posted write, complete now
-                    end else if (mem_resp_valid) begin
-                        // Some memories (e.g. a simple synchronous SRAM)
-                        // deliver read data the same cycle they accept the
-                        // request. Don't move to LSU_WAIT_RESP and wait an
-                        // extra cycle for a response that has already
-                        // arrived -- it would go unseen (single-cycle
-                        // pulse) and the FSM would hang forever.
+                    if (mem_resp_valid) begin
                         l_rdata <= mem_resp_rdata;
                         state   <= LSU_DONE;
                     end else begin
                         state <= LSU_WAIT_RESP;
                     end
                 end else begin
-                    // Keep re-asserting the request, with stable payload,
-                    // until memory accepts it -- standard ready/valid
-                    // convention forbids dropping VALID before READY once
-                    // asserted, so a flush here only marks the eventual
-                    // result for discard (l_squashed above); it does not
-                    // withdraw the request early.
                     mem_req_valid <= 1'b1;
-                    mem_req_we    <= l_is_store;
                     mem_req_addr  <= l_addr;
-                    mem_req_wdata <= l_wdata;
-                    mem_req_wstrb <= l_wstrb;
                 end
             end
 
             LSU_WAIT_RESP: begin
-                if (flush) l_squashed <= 1'b1;
+                if (flush) 
+                    l_squashed <= 1'b1;
                 if (mem_resp_valid) begin
                     l_rdata <= mem_resp_rdata;
                     state   <= LSU_DONE;
@@ -225,7 +230,7 @@ module lsu (
                 LH:      load_result = {{16{shifted_rdata[15]}}, shifted_rdata[15:0]};
                 LHU:     load_result = {16'b0,                    shifted_rdata[15:0]};
                 LW:      load_result = l_rdata;
-                default: load_result = '0;  // store: result unused (reg_we is 0)
+                default: load_result = '0;
                 endcase
 
                 lsu_wb_out.valid        <= ~l_squashed;
