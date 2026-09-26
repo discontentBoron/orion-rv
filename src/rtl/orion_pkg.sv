@@ -8,9 +8,9 @@ package orion_pkg;
   parameter ROB_SIZE = 32;
   parameter ROB_PTR = $clog2(ROB_SIZE);
   parameter IQ_SIZE = 16;
-  parameter IQ_AGE_WIDTH = 8;
   parameter NUM_CDB_PORTS = 5;
   parameter logic [DATA_WIDTH-1:0] DEFAULT_EXCEPT_PC = 32'h0;
+  parameter IMEM_DEPTH = 256;
 
   parameter int CDB_PORT_ALU    = 0;
   parameter int CDB_PORT_MUL    = 1;
@@ -122,7 +122,6 @@ package orion_pkg;
     logic [DATA_WIDTH-1:0]    pc;
     logic [DATA_WIDTH-1:0]    predicted_pc;
     logic                     valid;
-    logic [IQ_AGE_WIDTH-1:0]  age_tag;
   } iq_entry_s;
 
   typedef struct packed {
