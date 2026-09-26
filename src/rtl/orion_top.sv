@@ -9,7 +9,8 @@ module orion_top #(
     output logic [DATA_WIDTH-1:0]   fetch_pc,
     output logic [DATA_WIDTH-1:0]   fetch_instr,
     output logic                    fetch_valid,
-
+    output logic [$clog2(IMEM_DEPTH)-1:0]   imem_addr,
+    
     // Pipeline observability
     output logic                    rename_stall,
     output logic                    rob_full,
@@ -33,7 +34,8 @@ module orion_top #(
     output logic [3:0]              mem_req_wstrb,
     input  logic                    mem_req_ready,
     input  logic                    mem_resp_valid,
-    input  logic [DATA_WIDTH-1:0]   mem_resp_rdata
+    input  logic [DATA_WIDTH-1:0]   mem_resp_rdata,
+    input  logic [DATA_WIDTH-1:0]   imem_rdata
 );
     decode_rename_pkt_s     decode_out;
     rename_dispatch_pkt_s   rename_dispatch_out;
@@ -62,8 +64,23 @@ module orion_top #(
 
     logic   div_ready;
     logic   lsu_ready;
+    logic                   sb_store_commit;
+    logic                   sb_can_accept;
+    logic                   sb_empty;
+    logic                   sb_enq_valid;
+    logic [DATA_WIDTH-1:0]  sb_enq_addr, sb_enq_wdata;
+    logic [3:0]             sb_enq_wstrb;
+    logic [DATA_WIDTH-1:0]  sb_ld_addr, sb_ld_fwd_data;
+    logic [3:0]             sb_ld_mask;
+    logic                   sb_ld_hit, sb_ld_fwd_ok;
+    logic                   sb_drain_valid, sb_drain_pop;
+    logic [DATA_WIDTH-1:0]  sb_drain_addr, sb_drain_wdata;
+    logic [3:0]             sb_drain_wstrb;
 
-
+    // LSU (load) side of the memory port, before arbitration
+    logic                       lsu_req_valid, lsu_req_ready;
+    logic [DATA_WIDTH-1:0]      lsu_req_addr;
+    logic [DATA_WIDTH-1:0]    fetch_predicted_pc;
     logic [NUM_CDB_PORTS-1:0] cdb_valid_i;
     logic [NUM_CDB_PORTS-1:0] cdb_mispredict_i;
     logic [NUM_CDB_PORTS-1:0] cdb_exception_i;
@@ -151,24 +168,35 @@ module orion_top #(
     assign redirect_valid_i = branch_mispredict | exception_valid;
 
     fetch_unit #(
-        .IMEM_DEPTH(IMEM_DEPTH),
-        .IMEM_INIT_FILE("")
+        .IMEM_DEPTH(IMEM_DEPTH)
     ) u_fetch (
-        .clk            (clk),
-        .rst_n          (rst_n),
-        .stall          (rename_stall),
-        .redirect_valid (redirect_valid_i),
-        .redirect_pc    (redirect_pc),
-        .fetch_pc       (fetch_pc),
-        .fetch_instr    (fetch_instr),
-        .fetch_valid    (fetch_valid)
+        .clk                (clk),
+        .rst_n              (rst_n),
+        .stall              (rename_stall),
+        .redirect_valid     (redirect_valid_i),
+        .redirect_pc        (redirect_pc),
+        .fetch_pc           (fetch_pc),
+        .imem_addr          (imem_addr),
+        .imem_rdata         (imem_rdata),
+        .fetch_predicted_pc (fetch_predicted_pc),
+        .fetch_instr        (fetch_instr),
+        .fetch_valid        (fetch_valid),
+        .bp_update_valid    (branch_wb.valid && !branch_wb.except),
+        .bp_update_pc       (branch_wb.pc),
+        .bp_update_taken    (branch_wb.taken),
+        .bp_update_target   (branch_wb.target_pc)
     );
 
     decode_unit u_decode (
-        .fetch_pc    (fetch_pc),
-        .fetch_instr (fetch_instr),
-        .fetch_valid (fetch_valid),
-        .decode_out  (decode_out)
+        .clk                (clk),
+        .rst_n              (rst_n),
+        .stall              (rename_stall),
+        .flush              (redirect_valid_i),
+        .fetch_pc           (fetch_pc),
+        .fetch_instr        (fetch_instr),
+        .fetch_valid        (fetch_valid),
+        .fetch_predicted_pc (fetch_predicted_pc),
+        .decode_out         (decode_out)
     );
 
     
@@ -215,7 +243,7 @@ module orion_top #(
         .commit_rd_e        (commit_rd_e_i),
         .commit_pd_e        (commit_pd_e_i),
         .commit_old_pd_e    (commit_old_pd_e_i),
-        .store_commit       (),
+        .store_commit       (sb_store_commit),
         .branch_mispredict  (branch_mispredict),
         .exception_valid    (exception_valid),
         .redirect_pc        (redirect_pc),
@@ -230,7 +258,6 @@ module orion_top #(
         .dispatch_in        (rename_dispatch_out),
         .dispatch_rob_tag   (rob_tag_out),
         .rob_full           (rob_full),
-        .rob_head_tag       (rob_head_tag),
         .iq_full            (iq_full),
         .cdb_valid          (cdb_valid_i),
         .cdb_p_dest         (cdb_p_dest_i),
@@ -238,6 +265,7 @@ module orion_top #(
         .exception_valid    (exception_valid),
         .div_ready          (div_ready),
         .lsu_ready          (lsu_ready),
+        .sb_can_accept      (sb_can_accept),
         .issue_valid        (issue_valid),
         .issue_pkt          (issue_pkt),
         .issue_rob_tag      (issue_rob_tag)
@@ -302,22 +330,64 @@ module orion_top #(
         .branch_wb_out (branch_wb)
     );
 
-    lsu u_lsu (
+   lsu u_lsu (
         .clk            (clk),
         .rst_n          (rst_n),
         .flush          (redirect_valid_i),
         .regread_in     (regread_lsu_in),
         .lsu_ready      (lsu_ready),
         .lsu_wb_out     (lsu_wb),
-        .mem_req_valid  (mem_req_valid),
-        .mem_req_we     (mem_req_we),
-        .mem_req_addr   (mem_req_addr),
-        .mem_req_wdata  (mem_req_wdata),
-        .mem_req_wstrb  (mem_req_wstrb),
-        .mem_req_ready  (mem_req_ready),
+        .sb_enq_valid   (sb_enq_valid),
+        .sb_enq_addr    (sb_enq_addr),
+        .sb_enq_wdata   (sb_enq_wdata),
+        .sb_enq_wstrb   (sb_enq_wstrb),
+        .sb_ld_addr     (sb_ld_addr),
+        .sb_ld_mask     (sb_ld_mask),
+        .sb_ld_hit      (sb_ld_hit),
+        .sb_ld_fwd_ok   (sb_ld_fwd_ok),
+        .sb_ld_fwd_data (sb_ld_fwd_data),
+        .mem_req_valid  (lsu_req_valid),
+        .mem_req_addr   (lsu_req_addr),
+        .mem_req_ready  (lsu_req_ready),
         .mem_resp_valid (mem_resp_valid),
         .mem_resp_rdata (mem_resp_rdata)
     );
+    store_buffer #(.DEPTH(8), .SLACK(2)) u_sb (
+        .clk          (clk),
+        .rst_n        (rst_n),
+        .enq_valid    (sb_enq_valid),
+        .enq_addr     (sb_enq_addr),
+        .enq_wdata    (sb_enq_wdata),
+        .enq_wstrb    (sb_enq_wstrb),
+        .store_commit (sb_store_commit),
+        .flush        (redirect_valid_i),
+        .drain_pop    (sb_drain_pop),
+        .can_accept   (sb_can_accept),
+        .drain_valid  (sb_drain_valid),
+        .drain_addr   (sb_drain_addr),
+        .drain_wdata  (sb_drain_wdata),
+        .drain_wstrb  (sb_drain_wstrb),
+        .empty        (sb_empty),
+        .ld_addr      (sb_ld_addr),
+        .ld_mask      (sb_ld_mask),
+        .ld_hit       (sb_ld_hit),
+        .ld_fwd_ok    (sb_ld_fwd_ok),
+        .ld_fwd_data  (sb_ld_fwd_data)
+    );
+    logic sb_lock_q, sel_sb;
+    assign sel_sb        = sb_drain_valid & (sb_lock_q | ~lsu_req_valid);
 
+    assign mem_req_valid = sel_sb | lsu_req_valid;
+    assign mem_req_we    = sel_sb;
+    assign mem_req_addr  = sel_sb ? sb_drain_addr  : lsu_req_addr;
+    assign mem_req_wdata = sb_drain_wdata;                       // don't-care for reads
+    assign mem_req_wstrb = sel_sb ? sb_drain_wstrb : 4'b0000;
+    assign lsu_req_ready = mem_req_ready & ~sel_sb;
+    assign sb_drain_pop  = mem_req_ready &  sel_sb;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) sb_lock_q <= 1'b0;
+        else        sb_lock_q <= sel_sb & ~mem_req_ready;
+    end
 endmodule
 
