@@ -96,8 +96,8 @@ module div(
                                 automatic logic [31:0] b_abs = src2_neg ? (~b + 1) : b;
 
                                 // Sign of quotient = src1_sign ^ src2_sign; remainder sign = src1_sign
-                                result_neg = src1_neg ^ src2_neg;
-                                rem_neg    = src1_neg;
+                                result_neg <= src1_neg ^ src2_neg;
+                                rem_neg    <= src1_neg;
 
                                 // ---- 5. Divide‑by‑zero ----
                                 if (b_abs == 32'd0) begin
@@ -173,6 +173,26 @@ module div(
             endcase
         end
     end
-    
+    `ifdef DEBUG
+    always_ff @(posedge clk) begin
+        if (rst_n) begin
+            $display(
+                "DIV: state=%0d valid=%b ready=%b uop=%0d rob=%0d psrc1=%0d psrc2=%0d a=%08h b=%08h bit_cnt=%0d rem=%08h quot=%08h",
+                state,
+                regread_in.valid,
+                div_ready,
+                regread_in.exec_unit_uop,
+                regread_in.rob_tag,
+                regread_in.p_src1,
+                regread_in.p_src2,
+                regread_in.src1_data,
+                regread_in.src2_data,
+                bit_cnt,
+                rem,
+                quot
+            );
+        end
+    end
+`endif
 
 endmodule
