@@ -9,16 +9,29 @@ module mul (
 
     output execute_wb_pkt_s       mul_wb_out
 );
+    // Stage 1: partial product generation and corrections
     logic [15:0] a_lo_comb, a_hi_comb, b_lo_comb, b_hi_comb;
     assign a_lo_comb = regread_in.src1_data[15:0];
     assign a_hi_comb = regread_in.src1_data[31:16];
     assign b_lo_comb = regread_in.src2_data[15:0];
     assign b_hi_comb = regread_in.src2_data[31:16];
 
-    logic [31:0] p0_comb, p1_comb, p2_comb;
+    logic [31:0] p0_comb, p1_comb, p2_comb, p3_comb;
     assign p0_comb = a_lo_comb * b_lo_comb;
     assign p1_comb = a_hi_comb * b_lo_comb;
     assign p2_comb = a_lo_comb * b_hi_comb;
+    assign p3_comb = a_hi_comb * b_hi_comb;
+
+    logic [32:0]  p12_comb, total_corr_comb;
+    logic a_neg_comb, b_neg_comb;
+    logic [31:0] a_corr_val_comb, b_corr_val_comb;
+
+    assign a_neg_comb = regread_in.src1_data[31];
+    assign b_neg_comb = regread_in.src2_data[31];
+    assign  p12_comb = p1_comb + p2_comb;
+    assign a_corr_val_comb = (a_neg_comb && (regread_in.exec_unit_uop == MULH | regread_in.exec_unit_uop == MULHSU)) ? regread_in.src2_data : 32'd0;
+    assign b_corr_val_comb = (b_neg_comb && (regread_in.exec_unit_uop == MULH | regread_in.exec_unit_uop == MULHSU)) ? regread_in.src1_data : 32'd0;
+    assign total_corr_comb = a_corr_val_comb + b_corr_val_comb;
 
     logic                    ms1_valid;
     logic [TAG_WIDTH-1:0]    ms1_p_dest;
@@ -30,8 +43,9 @@ module mul (
     except_cause_e           ms1_except_cause;
     logic                    ms1_except;
     exec_unit_opcode_e       ms1_uop;
-    logic [31:0]             ms1_p0, ms1_p1, ms1_p2;
-    logic [31:0]             ms1_a, ms1_b;
+    logic [31:0]             ms1_p0, ms1_p3;
+    logic [32:0]             ms1_p12;
+    logic [32:0]             ms1_total_corr;
 
     always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
@@ -46,12 +60,11 @@ module mul (
         ms1_except        <= 1'b0;
         ms1_uop           <= MUL;
         ms1_p0            <= '0;
-        ms1_p1            <= '0;
-        ms1_p2            <= '0;
-        ms1_a             <= '0;
-        ms1_b             <= '0;
+        ms1_p3            <= '0;
+        ms1_p12           <= '0;
+        ms1_total_corr    <= '0;
     end else begin
-        ms1_valid        <= regread_in.valid & ~flush;
+        ms1_valid         <= regread_in.valid & ~flush;
         ms1_p_dest        <= regread_in.p_dest;
         ms1_old_p_dest    <= regread_in.old_p_dest;
         ms1_rob_tag       <= regread_in.rob_tag;
@@ -62,36 +75,21 @@ module mul (
         ms1_except        <= regread_in.except;
         ms1_uop           <= regread_in.exec_unit_uop;
         ms1_p0            <= p0_comb;
-        ms1_p1            <= p1_comb;
-        ms1_p2            <= p2_comb;
-        ms1_a             <= regread_in.src1_data;
-        ms1_b             <= regread_in.src2_data;
+        ms1_p3            <= p3_comb;
+        ms1_p12           <= p12_comb;
+        ms1_total_corr    <= total_corr_comb;
     end
   end
-  logic [15:0] a_hi_s2, b_hi_s2;
-  assign a_hi_s2 = ms1_a[31:16];
-  assign b_hi_s2 = ms1_b[31:16];
-
-  logic [31:0] p3_comb;
-  assign p3_comb = a_hi_s2 * b_hi_s2;
+ 
+  //Stage 2: Final sum
   logic [63:0] unsigned_product_comb;
   assign unsigned_product_comb = {32'd0, ms1_p0}
-                                + ({32'd0, ms1_p1} << 16)
-                                + ({32'd0, ms1_p2} << 16)
-                                + ({32'd0, p3_comb} << 32);
-  logic a_negative, b_negative;
-  assign a_negative = ms1_a[31];
-  assign b_negative = ms1_b[31];
-
-  logic [63:0] a_correction_comb, b_correction_comb;
-  assign a_correction_comb = (a_negative && (ms1_uop == MULH || ms1_uop == MULHSU))
-                              ? ({32'd0, ms1_b} << 32) : 64'd0;
-  assign b_correction_comb = (b_negative && (ms1_uop == MULH))
-                              ? ({32'd0, ms1_a} << 32) : 64'd0;
-
+                                + ({31'd0, ms1_p12} << 16)
+                                + ({32'd0, ms1_p3} << 32);
   logic [63:0] signed_product_comb;
-  assign signed_product_comb = unsigned_product_comb - a_correction_comb - b_correction_comb;
+  assign signed_product_comb = unsigned_product_comb - (64'(ms1_total_corr) << 32);
   logic [DATA_WIDTH-1:0] mul_result_comb;
+ 
   always_comb begin
     unique case (ms1_uop)
         MUL:     mul_result_comb = unsigned_product_comb[31:0];
