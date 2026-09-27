@@ -13,7 +13,7 @@ module register_read (
     input   logic [ROB_PTR-1:0]     dispatch_rob_tag,
     // CDB (Common Data Bus) forwarding bypass — one port per execute unit
     input   logic [TAG_WIDTH-1:0]       cdb_tag [NUM_CDB_PORTS],
-    input   logic [DATA_WIDTH-1:0]      cdb_data [NUM_CDB_PORTS],
+    
     input   logic [NUM_CDB_PORTS-1:0]   cdb_valid,
 
     // Writeback port into PRF (from execution units)

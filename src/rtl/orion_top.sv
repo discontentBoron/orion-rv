@@ -279,7 +279,6 @@ module orion_top #(
         .flush           (redirect_valid_i),
         .dispatch_rob_tag(issue_rob_tag),
         .cdb_tag         (cdb_p_dest_i),
-        .cdb_data        (cdb_data_i),
         .cdb_valid       (cdb_valid_i),
         .wb_en           (wb_en_i),
         .wb_tag          (wb_tag_i),
