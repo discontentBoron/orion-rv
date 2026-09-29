@@ -11,10 +11,13 @@ module issue_queue_tb;
   rename_dispatch_pkt_s                 dispatch_in;
   logic                 [  ROB_PTR-1:0] dispatch_rob_tag;
   logic                                 iq_full;
-  logic                                 cdb_valid;
-  logic                 [TAG_WIDTH-1:0] cdb_p_dest;
+  logic                                 rob_full;
+  logic          [NUM_CDB_PORTS-1:0]    cdb_valid;
+  logic [TAG_WIDTH-1:0]                 cdb_p_dest    [NUM_CDB_PORTS];
   logic                                 branch_mispredict;
   logic                                 exception_valid;
+  logic                                 div_ready;
+  logic                                 lsu_ready;
   logic                                 issue_valid;
   rename_dispatch_pkt_s                 issue_pkt;
   logic                 [  ROB_PTR-1:0] issue_rob_tag;
@@ -28,10 +31,13 @@ module issue_queue_tb;
       .dispatch_in      (dispatch_in),
       .dispatch_rob_tag (dispatch_rob_tag),
       .iq_full          (iq_full),
+      .rob_full         (rob_full),
       .cdb_valid        (cdb_valid),
       .cdb_p_dest       (cdb_p_dest),
       .branch_mispredict(branch_mispredict),
       .exception_valid  (exception_valid),
+      .div_ready        (div_ready),
+      .lsu_ready        (lsu_ready),
       .issue_valid      (issue_valid),
       .issue_pkt        (issue_pkt),
       .issue_rob_tag    (issue_rob_tag)
@@ -77,6 +83,14 @@ module issue_queue_tb;
   // dispatched (or woken) on some later cycle, X gets consumed on that
   // SAME posedge, concurrently with Y's write. Ready entries do not
   // "wait around" for you to get to them.
+  //
+  // CDB is now NUM_CDB_PORTS-wide (was a single scalar port). drive_cdb()
+  // takes an optional port index (default 0) so every pre-existing call
+  // below still compiles and behaves exactly as before -- it's just
+  // always exercising port 0 unless a test says otherwise. div_ready and
+  // lsu_ready are new busy/idle inputs from the DIV and LSU execution
+  // units; they default to 1 (idle) in reset_dut() so none of the
+  // pre-existing tests are affected by their addition.
   // -----------------------------------------------------------------------
 
   // -----------------------------------------------------------------------
@@ -86,10 +100,13 @@ module issue_queue_tb;
     rst_n             = 0;
     dispatch_in       = '0;
     dispatch_rob_tag  = '0;
-    cdb_valid         = 0;
-    cdb_p_dest        = '0;
+    cdb_valid         = '0;
+    cdb_p_dest        = '{default: '0};
     branch_mispredict = 0;
     exception_valid   = 0;
+    rob_full          = 0;
+    div_ready         = 1;
+    lsu_ready         = 1;
     @(negedge clk);
     @(negedge clk);
     rst_n = 1;
@@ -128,14 +145,15 @@ module issue_queue_tb;
     dispatch_rob_tag = '0;
   endtask
 
-  task automatic drive_cdb(input logic [TAG_WIDTH-1:0] p_dest);
-    cdb_valid  = 1;
-    cdb_p_dest = p_dest;
+  // port defaults to 0 so every pre-existing call site is unchanged.
+  task automatic drive_cdb(input logic [TAG_WIDTH-1:0] p_dest, input int port = 0);
+    cdb_valid[port]  = 1;
+    cdb_p_dest[port] = p_dest;
   endtask
 
   task automatic clear_cdb();
-    cdb_valid  = 0;
-    cdb_p_dest = '0;
+    cdb_valid  = '0;
+    cdb_p_dest = '{default: '0};
   endtask
 
   // -----------------------------------------------------------------------
@@ -183,7 +201,7 @@ module issue_queue_tb;
     clear_dispatch();
     check("issue_valid=0 before wakeup", issue_valid == 1'b0);
 
-    // CDB fires for p_src1
+    // CDB fires for p_src1 (port 0)
     drive_cdb(6'd20);
     @(negedge clk);
     clear_cdb();
@@ -195,6 +213,77 @@ module issue_queue_tb;
     clear_cdb();
     check("issue_valid=1 after full wakeup", issue_valid == 1'b1);
     check("issue_pkt.p_dest correct", issue_pkt.p_dest == 6'd34);
+  endtask
+
+  // -----------------------------------------------------------------------
+  // TEST 3b: CDB wakeup arriving on a NON-ZERO port
+  //
+  // The pre-existing tests only ever drive port 0. This is the one that
+  // actually exercises the widened cdb_hit() OR-reduce across all
+  // NUM_CDB_PORTS -- if the port array wiring were swapped or truncated,
+  // this is the test that would catch it.
+  // -----------------------------------------------------------------------
+  task automatic test_cdb_wakeup_nonzero_port();
+    $display("\nTEST 3b: CDB wakeup on a non-zero port");
+    reset_dut();
+
+    drive_dispatch(.p_src1(6'd22), .p_src2(6'd23), .src1_valid(1), .src2_valid(1), .src1_rdy(0),
+                   .src2_rdy(0), .p_dest(6'd36), .old_p_dest(6'd0), .rob_tag(5'd2));
+    @(negedge clk);
+    clear_dispatch();
+    check("issue_valid=0 before wakeup", issue_valid == 1'b0);
+
+    // Wake p_src1 on port NUM_CDB_PORTS-1 (the last port), p_src2 on port 2.
+    // Ports 0/1 stay idle throughout to prove they aren't silently doing
+    // the work instead.
+    drive_cdb(6'd22, NUM_CDB_PORTS - 1);
+    @(negedge clk);
+    clear_cdb();
+    check("issue_valid=0 after partial wakeup (last port)", issue_valid == 1'b0);
+
+    drive_cdb(6'd23, 2);
+    @(negedge clk);
+    clear_cdb();
+    check("issue_valid=1 after full wakeup via non-zero ports", issue_valid == 1'b1);
+    check("issue_pkt.p_dest correct", issue_pkt.p_dest == 6'd36);
+  endtask
+
+  // -----------------------------------------------------------------------
+  // TEST 3c: Two DIFFERENT entries woken simultaneously by two DIFFERENT
+  // CDB ports in the same cycle.
+  //
+  // This is the scenario the single-port design couldn't handle at all --
+  // two execution units completing in the same cycle. Both entries need
+  // only one source each so a single wakeup pulse fully readies them,
+  // and we use distinct dest tags so oldest-first ordering (already
+  // covered in TEST 5) decides which issues first.
+  // -----------------------------------------------------------------------
+  task automatic test_cdb_dual_port_wakeup();
+    $display("\nTEST 3c: Two entries woken by two different CDB ports, same cycle");
+    reset_dut();
+
+    drive_dispatch(.p_src1(6'd24), .p_src2(6'd0), .src1_valid(1), .src2_valid(0), .src1_rdy(0),
+                   .src2_rdy(0), .p_dest(6'd37), .old_p_dest(6'd0), .rob_tag(5'd3));
+    @(negedge clk);  // older entry, age_tag = N
+
+    drive_dispatch(.p_src1(6'd25), .p_src2(6'd0), .src1_valid(1), .src2_valid(0), .src1_rdy(0),
+                   .src2_rdy(0), .p_dest(6'd38), .old_p_dest(6'd0), .rob_tag(5'd4));
+    @(negedge clk);  // younger entry, age_tag = N+1
+    clear_dispatch();
+
+    // Port 0 wakes the younger entry's source, port 1 wakes the older
+    // entry's source, both in the same cycle.
+    drive_cdb(6'd25, 0);
+    drive_cdb(6'd24, 1);
+    @(negedge clk);
+    clear_cdb();
+
+    check("Older entry (p_dest=37) wins despite port-1 wakeup",
+          issue_valid && issue_pkt.p_dest == 6'd37);
+
+    @(negedge clk);  // older consumed; younger remains, already ready
+    check("Younger entry (p_dest=38) issues next",
+          issue_valid && issue_pkt.p_dest == 6'd38);
   endtask
 
   // -----------------------------------------------------------------------
@@ -228,6 +317,10 @@ module issue_queue_tb;
   // actually exercise the age comparator : waking them on separate cycles
   // (as an earlier version of this test did) means only one entry is ever
   // ready at a time, and the comparator's tie-break logic never fires.
+  //
+  // This now also exercises the binary-tree oldest-select reduction
+  // (replacing the old all-pairs matrix) with 3 simultaneously-ready
+  // entries -- same observable behavior is required either way.
   // -----------------------------------------------------------------------
   task automatic test_oldest_first();
     $display("\nTEST 5: Oldest-first selection (simultaneous ready)");
@@ -398,6 +491,82 @@ module issue_queue_tb;
   endtask
 
   // -----------------------------------------------------------------------
+  // TEST 11: DIV busy-gating
+  //
+  // A DIV op with both sources ready is dispatched while div_ready=0
+  // (unit busy). It must NOT issue -- fu_available() must be gating
+  // ready_vec even though p_src1_ready/p_src2_ready are both set. Once
+  // div_ready=1, it must issue on the very next cycle with no re-dispatch
+  // needed (the entry was parked the whole time, just not selectable).
+  // -----------------------------------------------------------------------
+  task automatic test_div_busy_gating();
+    $display("\nTEST 11: DIV busy-gating (div_ready)");
+    reset_dut();
+
+    div_ready = 0;  // divider mid-operation
+    drive_dispatch(.p_src1(6'd10), .p_src2(6'd11), .src1_valid(1), .src2_valid(1), .src1_rdy(1),
+                   .src2_rdy(1), .p_dest(6'd60), .old_p_dest(6'd0), .rob_tag(5'd0));
+    dispatch_in.func_unit_type = FU_MULDIV;
+    dispatch_in.exec_unit_uop  = DIV;
+    @(negedge clk);
+    clear_dispatch();
+
+    check("DIV with ready operands does NOT issue while div_ready=0",
+          issue_valid == 1'b0);
+
+    // Still not issuing several cycles later, still busy
+    @(negedge clk);
+    @(negedge clk);
+    check("DIV still held while div busy (not dropped, not issued)",
+          issue_valid == 1'b0);
+
+    div_ready = 1;  // divider frees up
+    #0;
+    // Check immediately: issue_valid is combinational
+    check("DIV issues as soon as div_ready=1, same cycle it's asserted",
+          issue_valid == 1'b1 && issue_pkt.p_dest == 6'd60);
+
+    @(negedge clk);  // consumed
+    div_ready = 1;
+    check("DIV entry consumed after issuing", issue_valid == 1'b0);
+  endtask
+
+  // -----------------------------------------------------------------------
+  // TEST 12: LSU busy-gating, plus an independent ALU issuing behind it
+  //
+  // Mirrors TEST 11 for lsu_ready, and additionally proves an unrelated
+  // ready ALU op still issues while the LSU-bound entry is held (busy-
+  // gating one entry must not stall the rest of the queue).
+  // -----------------------------------------------------------------------
+  task automatic test_lsu_busy_gating();
+    $display("\nTEST 12: LSU busy-gating (lsu_ready) + independent ALU behind it");
+    reset_dut();
+
+    lsu_ready = 0;  // LSU mid-operation
+    drive_dispatch(.p_src1(6'd10), .p_src2(6'd11), .src1_valid(1), .src2_valid(1), .src1_rdy(1),
+                   .src2_rdy(1), .p_dest(6'd61), .old_p_dest(6'd0), .rob_tag(5'd0));
+    dispatch_in.func_unit_type = FU_LSU;
+    @(negedge clk);  // LSU entry parked, not selectable
+
+    // Independent ALU, ready, dispatched after (younger)
+    drive_dispatch(.p_src1(6'd12), .p_src2(6'd13), .src1_valid(1), .src2_valid(1), .src1_rdy(1),
+                   .src2_rdy(1), .p_dest(6'd62), .old_p_dest(6'd0), .rob_tag(5'd1));
+    @(negedge clk);
+    clear_dispatch();
+
+    check("Ready ALU issues despite older LSU held busy",
+          issue_valid == 1'b1 && issue_pkt.p_dest == 6'd62);
+
+    @(negedge clk);  // ALU consumed; LSU still busy
+    check("LSU still held while lsu busy", issue_valid == 1'b0);
+
+    lsu_ready = 1;  // LSU frees up
+    #0;
+    check("LSU issues as soon as lsu_ready=1",
+          issue_valid == 1'b1 && issue_pkt.p_dest == 6'd61);
+  endtask
+
+  // -----------------------------------------------------------------------
   // INTEGRATED  RAW dependency chain A -> B -> C
   //
   // A needs no sources, so it's ready the instant it's written and gets
@@ -445,6 +614,11 @@ module issue_queue_tb;
 
   // -----------------------------------------------------------------------
   // INTEGRATED  Independent ALU issues behind a stalled MUL
+  //
+  // MUL is not gated by div_ready (only the DIV-family opcodes are), so
+  // this deliberately leaves div_ready/lsu_ready at their reset default
+  // of 1 throughout -- it is purely a ready-operand stall, unrelated to
+  // FU busy-gating (that's TEST 11/12 above).
   // -----------------------------------------------------------------------
   task automatic test_independent_issue_behind_muldiv();
     $display("\nINTEGRATED: Independent ALU issues behind stalled MUL");
@@ -491,6 +665,8 @@ module issue_queue_tb;
     test_reset();
     test_dispatch_ready_issue();
     test_cdb_wakeup();
+    test_cdb_wakeup_nonzero_port();
+    test_cdb_dual_port_wakeup();
     test_iq_full();
     test_oldest_first();
     test_flush_mispredict();
@@ -498,6 +674,8 @@ module issue_queue_tb;
     test_dispatch_suppressed_on_flush();
     test_cdb_dispatch_same_cycle();
     test_fill_flush_refill();
+    test_div_busy_gating();
+    test_lsu_busy_gating();
     test_raw_chain();
     test_independent_issue_behind_muldiv();
 

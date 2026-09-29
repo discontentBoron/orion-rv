@@ -1,21 +1,4 @@
-// =============================================================================
-// iq_backpressure_recovery_tb.sv — Orion OOO RISC-V Processor
-// Focused test: IQ full -> Rename holds packet -> IQ frees -> joint recovery
-//
-// This test validates both directions of the Rename/ROB/IQ backpressure path:
-//   1. IQ becomes full.
-//   2. Rename/Fetch stall.
-//   3. The EXACT registered Rename packet is held unchanged.
-//   4. No new ROB allocation occurs while IQ remains full.
-//   5. A controlled CDB unlock frees IQ entries.
-//   6. The held Rename packet is accepted by BOTH ROB and IQ.
-//   7. Fetch resumes after the held packet is released.
-//
-// Important sampling rule:
-//   ROB/IQ allocate with nonblocking assignments.  Therefore, the joint ROB/IQ
-//   membership check is performed one delta/cycle after the acceptance edge.
-// =============================================================================
-
+//TODO: Fix to support updated modules. Lot of changes in module to fix
 `timescale 1ns/1ps
 import orion_pkg::*;
 

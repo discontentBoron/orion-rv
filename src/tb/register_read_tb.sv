@@ -1,20 +1,6 @@
 `timescale 1ns / 1ps
 import orion_pkg::*;
-
-// -----------------------------------------------------------------------
-// Self-checking testbench for register_read.
-//
-// Correctness is checked against an independent golden model re-derived
-// from the module's spec (PRF read, x0 hardwiring, CDB forwarding
-// priority, output register, flush-forces-invalid) rather than by
-// mirroring the DUT's internal mux structure. That way a rewrite that
-// happens to share a bug with the RTL won't be silently rubber-stamped.
-//
-// Stimulus keeps CDB/writeback ports collision-free per cycle (at most
-// one port targets any given tag), matching the architectural invariant
-// the DUT's one-hot mux relies on. That invariant is a precondition of
-// this design, not something this testbench is trying to falsify.
-// -----------------------------------------------------------------------
+//TODO: Fix to support updated modules. Lot of changes in module to fix
 module register_read_tb;
 
   localparam int CLK_PERIOD        = 10;

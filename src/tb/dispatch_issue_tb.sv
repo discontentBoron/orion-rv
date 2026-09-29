@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 import orion_pkg::*;
-
+//TODO: Fix to support updated modules
 module dispatch_issue_tb;
     logic clk, rst_n;
     logic [DATA_WIDTH-1:0] fetch_pc, fetch_instr;

@@ -1,35 +1,6 @@
 `timescale 1ns/1ps
 import orion_pkg::*;
-
-// =============================================================================
-// Testbench for lsu.sv
-//
-// Drives a small behavioral memory model behind the LSU's ready/valid
-// interface. The model's request-accept delay and response delay are both
-// independently configurable per-transaction (cfg_req_delay / cfg_resp_delay),
-// so the same test bench can exercise:
-//   - a same-cycle "hit" (req_ready and resp_valid together) -- the exact
-//     race the LSU's LSU_REQ state was fixed to handle correctly
-//   - a delayed "miss"-style response (resp_valid several cycles later)
-//   - a busy bus that delays even accepting the request
-//
-// Coverage:
-//   1. Reset
-//   2. LB/LBU/LH/LHU/LW correctness across byte offsets 0/2/3, verifying
-//      both byte-lane selection and sign/zero extension
-//   3. SB/SH/SW correctness verified by peeking the backing memory array
-//      directly (byte-enable masking must leave untouched bytes alone)
-//   4. Store-then-load round trip through the DUT itself
-//   5. Exception passthrough (no memory access at all)
-//   6. Latency: same-cycle hit vs multi-cycle miss vs delayed bus accept
-//   7. Flush before the request is accepted by memory -- must still fully
-//      drain (standard ready/valid convention forbids withdrawing VALID
-//      early), discarding the result once it completes
-//   8. Flush after acceptance, while waiting on a delayed response
-//      (must drain the transaction, discard the result, ready recovers
-//      only once drained -- not immediately)
-//   9. Back-to-back exception passthroughs (the only "fast path" here)
-// =============================================================================
+//TODO: Fix to support updated modules. Lot of changes in module to fix.
 
 module lsu_tb;
 
@@ -619,9 +590,9 @@ module lsu_tb;
             logic [ROB_PTR-1:0]   exp_robtag[0:2];
             int i;
 
-            exp_pdest[0] = 6'd25; exp_robtag[0] = 5'd22; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-            exp_pdest[1] = 6'd26; exp_robtag[1] = 5'd23; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
-            exp_pdest[2] = 6'd27; exp_robtag[2] = 5'd24; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+            exp_pdest[0] = 6'd25; exp_robtag[0] = 5'd22; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+            exp_pdest[1] = 6'd26; exp_robtag[1] = 5'd23; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
+            exp_pdest[2] = 6'd27; exp_robtag[2] = 5'd24; // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability." // @suppress "Multiple statements on this line. Split the statements over multiple lines to improve readability."
 
             wait (lsu_ready === 1'b1);
             @(negedge clk);
