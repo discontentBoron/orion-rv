@@ -1,0 +1,77 @@
+# ** Note: (vsim-220) '/home/discontentBoron/altera/25.1std/questa_fse/linux_x86_64/../modelsim.ini' is used as the ini file.
+# vsim -c -l sim_logs/ROB_64_IQ_32/general.txt "+GEN" -do "run -all; quit -f" work.core_tb 
+# Start time: 19:53:41 on Sep 29,2026
+# ** Note: (vsim-8009) Loading existing optimized design _opt
+# //  Questa Altera Starter FPGA Edition-64
+# //  Version 2025.2 linux_x86_64 May 31 2025
+# //
+# // Unpublished work. Copyright 2025 Siemens
+# //
+# // This material contains trade secrets or otherwise confidential information
+# // owned by Siemens Industry Software Inc. or its affiliates (collectively,
+# // "SISW"), or its licensors. Access to and use of this information is strictly
+# // limited as set forth in the Customer's applicable agreements with SISW.
+# //
+# // This material may not be copied, distributed, or otherwise disclosed outside
+# // of the Customer's facilities without the express written permission of SISW,
+# // and may not be used in any way not expressly authorized by SISW.
+# //
+# Loading sv_std.std
+# Loading work.orion_pkg(fast)
+# Loading work.store_buffer_sv_unit(fast)
+# Loading work.lsu_sv_unit(fast)
+# Loading work.branch_sv_unit(fast)
+# Loading work.div_sv_unit(fast)
+# Loading work.mul_sv_unit(fast)
+# Loading work.alu_sv_unit(fast)
+# Loading work.regread_demux_sv_unit(fast)
+# Loading work.register_read_sv_unit(fast)
+# Loading work.issue_queue_sv_unit(fast)
+# Loading work.reorder_buffer_sv_unit(fast)
+# Loading work.rename_unit_sv_unit(fast)
+# Loading work.decode_unit_sv_unit(fast)
+# Loading work.fetch_unit_sv_unit(fast)
+# Loading work.orion_core_sv_unit(fast)
+# Loading work.core_tb_sv_unit(fast)
+# Loading work.core_tb(fast)
+# run -all
+# ++++++++++++++++++++++GENERAL TEST++++++++++++++++++++++
+# BENCH RESULT STORE: value=3934879702
+# BENCH DONE STORE: cycle=81282
+# [PASS] GENERAL benchmark result = 0xea897fd6 (got 0xea897fd6)
+# 
+# ===================== PERFORMANCE REPORT =====================
+# Cycles                    : 81284
+# Instructions retired       : 28494
+# IPC                        : 0.351
+# CPI                        : 2.853
+# ----------------------------------------------------------------
+# Fetched (incl. wrong-path) : 50818  (fetch efficiency: 56.1%)
+# Dispatched (rename->ROB/IQ): 49596
+# Issued                     : 36906
+# Redirects (mispred+except) : 573
+# ----------------------------------------------------------------
+# Branches retired           : 3065
+# Branch mispredicts         : 646
+# Mispredict rate            : 21.08%
+# Loads retired / Stores retired: 2037 / 1035
+# ----------------------------------------------------------------
+# FU issue counts  ALU=25898 MUL=1001 DIV=63 BRANCH=6204 LSU=3099
+# ----------------------------------------------------------------
+# Stall cycles               : 29892 (36.8% of all cycles)
+#   - caused by ROB full     : 0
+#   - caused by IQ full      : 35
+#   - caused by free-list    : 29857
+#   - other                  : 0
+# ----------------------------------------------------------------
+# Avg ROB occupancy          : 29.46 / 64 (46.0% util)
+# Avg IQ occupancy           : 18.36 / 32 (57.4% util)
+# ================================================================
+# 
+# 
+# ===== INTEGRATION TEST SUMMARY: 1 passed, 0 failed =====
+# ALL INTEGRATION CHECKS PASSED
+# ** Note: $finish    : ../src/tb/core_tb.sv(671)
+#    Time: 325146 ns  Iteration: 1  Instance: /core_tb
+# End time: 19:54:02 on Sep 29,2026, Elapsed time: 0:00:21
+# Errors: 0, Warnings: 0

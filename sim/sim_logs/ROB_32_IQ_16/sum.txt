@@ -1,0 +1,98 @@
+# ** Note: (vsim-220) '/home/discontentBoron/altera/25.1std/questa_fse/linux_x86_64/../modelsim.ini' is used as the ini file.
+# vsim -c -l sim_logs/ROB_32_IQ_16/sum.txt "+PERF" -do "run -all; quit -f" work.core_tb 
+# Start time: 19:44:08 on Sep 29,2026
+# ** Note: (vsim-3812) Design is being optimized...
+# ** Note: (vopt-220) '/home/discontentBoron/altera/25.1std/questa_fse/linux_x86_64/../modelsim.ini' is used as the ini file.
+# ** Warning: ../src/rtl/rename_unit.sv(12): (vopt-13314) Defaulting port 'cdb_p_dest' kind to 'var' rather than 'wire' due to default compile option setting of -svinputport=relaxed.
+# ** Warning: ../src/rtl/reorder_buffer.sv(7): (vopt-13314) Defaulting port 'dispatch_in' kind to 'var' rather than 'wire' due to default compile option setting of -svinputport=relaxed.
+# ** Warning: ../src/rtl/reorder_buffer.sv(13): (vopt-13314) Defaulting port 'cdb_rob_tag' kind to 'var' rather than 'wire' due to default compile option setting of -svinputport=relaxed.
+# ** Warning: ../src/rtl/reorder_buffer.sv(15): (vopt-13314) Defaulting port 'cdb_target_pc' kind to 'var' rather than 'wire' due to default compile option setting of -svinputport=relaxed.
+# ** Warning: ../src/rtl/reorder_buffer.sv(17): (vopt-13314) Defaulting port 'cdb_cause' kind to 'var' rather than 'wire' due to default compile option setting of -svinputport=relaxed.
+# ** Warning: ../src/rtl/issue_queue.sv(7): (vopt-13314) Defaulting port 'dispatch_in' kind to 'var' rather than 'wire' due to default compile option setting of -svinputport=relaxed.
+# ** Warning: ../src/rtl/issue_queue.sv(12): (vopt-13314) Defaulting port 'cdb_p_dest' kind to 'var' rather than 'wire' due to default compile option setting of -svinputport=relaxed.
+# ** Warning: ../src/rtl/register_read.sv(9): (vopt-13314) Defaulting port 'dispatch_in' kind to 'var' rather than 'wire' due to default compile option setting of -svinputport=relaxed.
+# ** Warning: ../src/rtl/register_read.sv(15): (vopt-13314) Defaulting port 'cdb_tag' kind to 'var' rather than 'wire' due to default compile option setting of -svinputport=relaxed.
+# ** Warning: ../src/rtl/register_read.sv(21): (vopt-13314) Defaulting port 'wb_tag' kind to 'var' rather than 'wire' due to default compile option setting of -svinputport=relaxed.
+# ** Warning: ../src/rtl/register_read.sv(22): (vopt-13314) Defaulting port 'wb_data' kind to 'var' rather than 'wire' due to default compile option setting of -svinputport=relaxed.
+# ** Warning: ../src/rtl/regread_demux.sv(3): (vopt-13314) Defaulting port 'execute_in' kind to 'var' rather than 'wire' due to default compile option setting of -svinputport=relaxed.
+# ** Warning: ../src/rtl/alu.sv(9): (vopt-13314) Defaulting port 'regread_in' kind to 'var' rather than 'wire' due to default compile option setting of -svinputport=relaxed.
+# ** Warning: ../src/rtl/mul.sv(8): (vopt-13314) Defaulting port 'regread_in' kind to 'var' rather than 'wire' due to default compile option setting of -svinputport=relaxed.
+# ** Warning: ../src/rtl/div.sv(7): (vopt-13314) Defaulting port 'regread_in' kind to 'var' rather than 'wire' due to default compile option setting of -svinputport=relaxed.
+# ** Warning: ../src/rtl/branch.sv(9): (vopt-13314) Defaulting port 'regread_in' kind to 'var' rather than 'wire' due to default compile option setting of -svinputport=relaxed.
+# ** Warning: ../src/rtl/lsu.sv(9): (vopt-13314) Defaulting port 'regread_in' kind to 'var' rather than 'wire' due to default compile option setting of -svinputport=relaxed.
+# ** Warning: ../src/tb/core_tb.sv(553): (vopt-2244) Variable 'expected' is implicitly static. You must either explicitly declare it as static or automatic
+# or remove the initialization in the declaration of variable.
+# ** Note: (vsim-12126) Error and warning message counts have been restored: Errors=0, Warnings=18.
+# //  Questa Altera Starter FPGA Edition-64
+# //  Version 2025.2 linux_x86_64 May 31 2025
+# //
+# // Unpublished work. Copyright 2025 Siemens
+# //
+# // This material contains trade secrets or otherwise confidential information
+# // owned by Siemens Industry Software Inc. or its affiliates (collectively,
+# // "SISW"), or its licensors. Access to and use of this information is strictly
+# // limited as set forth in the Customer's applicable agreements with SISW.
+# //
+# // This material may not be copied, distributed, or otherwise disclosed outside
+# // of the Customer's facilities without the express written permission of SISW,
+# // and may not be used in any way not expressly authorized by SISW.
+# //
+# Loading sv_std.std
+# Loading work.orion_pkg(fast)
+# Loading work.store_buffer_sv_unit(fast)
+# Loading work.lsu_sv_unit(fast)
+# Loading work.branch_sv_unit(fast)
+# Loading work.div_sv_unit(fast)
+# Loading work.mul_sv_unit(fast)
+# Loading work.alu_sv_unit(fast)
+# Loading work.regread_demux_sv_unit(fast)
+# Loading work.register_read_sv_unit(fast)
+# Loading work.issue_queue_sv_unit(fast)
+# Loading work.reorder_buffer_sv_unit(fast)
+# Loading work.rename_unit_sv_unit(fast)
+# Loading work.decode_unit_sv_unit(fast)
+# Loading work.fetch_unit_sv_unit(fast)
+# Loading work.orion_core_sv_unit(fast)
+# Loading work.core_tb_sv_unit(fast)
+# Loading work.core_tb(fast)
+# run -all
+# ++++++++++++++++++++++BEGINNING PERFORMANCE BENCHMARK++++++++++++++++++++++
+# BENCH RESULT STORE: value=50005000
+# BENCH DONE STORE: cycle=70062
+# [PASS] sum(1..100) = 5050
+# 
+# ===================== PERFORMANCE REPORT =====================
+# Cycles                    : 70064
+# Instructions retired       : 30014
+# IPC                        : 0.428
+# CPI                        : 2.334
+# ----------------------------------------------------------------
+# Fetched (incl. wrong-path) : 30074  (fetch efficiency: 99.8%)
+# Dispatched (rename->ROB/IQ): 30058
+# Issued                     : 30032
+# Redirects (mispred+except) : 4
+# ----------------------------------------------------------------
+# Branches retired           : 10001
+# Branch mispredicts         : 6
+# Mispredict rate            : 0.06%
+# Loads retired / Stores retired: 1 / 2
+# ----------------------------------------------------------------
+# FU issue counts  ALU=20016 MUL=0 DIV=0 BRANCH=10006 LSU=3
+# ----------------------------------------------------------------
+# Stall cycles               : 39985 (57.1% of all cycles)
+#   - caused by ROB full     : 0
+#   - caused by IQ full      : 39985
+#   - caused by free-list    : 0
+#   - other                  : 0
+# ----------------------------------------------------------------
+# Avg ROB occupancy          : 17.70 / 32 (55.3% util)
+# Avg IQ occupancy           : 15.56 / 16 (97.2% util)
+# ================================================================
+# 
+# 
+# ===== INTEGRATION TEST SUMMARY: 1 passed, 0 failed =====
+# ALL INTEGRATION CHECKS PASSED
+# ** Note: $finish    : ../src/tb/core_tb.sv(671)
+#    Time: 280266 ns  Iteration: 1  Instance: /core_tb
+# End time: 19:44:22 on Sep 29,2026, Elapsed time: 0:00:14
+# Errors: 0, Warnings: 18
