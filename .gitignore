@@ -43,6 +43,7 @@ cov_work/
 *.vams
 
 *.log
+*.logv*
 *.history
 *.key
 *.diag
@@ -73,3 +74,11 @@ inn_lib/
 innovus.log* # Innovus logs
 innovus.cmd* # Innovus command history
 *.fp
+*.g
+*.mode
+*.cmd*
+*.log*
+*.rpt
+*.old
+*.json
+*.min_layer
