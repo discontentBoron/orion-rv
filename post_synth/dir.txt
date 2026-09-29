@@ -1,0 +1,46 @@
+.
+├── dir.txt
+├── dmem_extra.sdc
+├── fanout.rpt
+├── innovus.cmd
+├── innovus.cmd1
+├── innovus.cmd2
+├── innovus.cmd3
+├── innovus.log
+├── innovus.log1
+├── innovus.log2
+├── innovus.log3
+├── innovus.logv
+├── innovus.logv1
+├── innovus.logv2
+├── innovus.logv3
+├── orion_core.conn.rpt
+├── orion_core.conn.rpt.old
+├── orion_core.default_emulate_constraint_mode.sdc
+├── orion_core.flowkit_settings.tcl
+├── orion_core.g
+├── orion_core.genus_setup.tcl
+├── orion_core.invs_init.tcl
+├── orion_core.invs_setup.tcl
+├── orion_core.metrics.json
+├── orion_core.min_layer
+├── orion_core.mmmc.tcl
+├── orion_core.mode
+├── orion_core.ndr.tcl
+├── orion_core.preserve.tcl
+├── orion_core.v
+├── orion_core.wnm_attrs.tcl
+├── pvsUI_ipvs.log
+├── timingReports
+│   ├── drvFailureReason
+│   ├── orion_core_preCTS_all.tarpt.gz
+│   ├── orion_core_preCTS.cap.gz
+│   ├── orion_core_preCTS_default.tarpt.gz
+│   ├── orion_core_preCTS.fanout.gz
+│   ├── orion_core_preCTS.length.gz
+│   ├── orion_core_preCTS_reg2reg.tarpt.gz
+│   ├── orion_core_preCTS.summary.gz
+│   └── orion_core_preCTS.tran.gz
+└── uncons.rpt
+
+3 directories, 41 files
