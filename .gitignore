@@ -30,7 +30,7 @@ vsim.wlf
 *.vcd
 *.ucdb
 modelsim.ini
-
+workdir/
 
 INCA_libs/
 xcelium.d/
