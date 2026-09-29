@@ -43,26 +43,32 @@ module rename_unit (
     end
     cdb_hit = |hits;
   endfunction
-  always_ff @(posedge clk or negedge rst_n) begin
-    if (~rst_n) begin
-      rename_dispatch_out <= 'b0;
-      for (int i = 0; i <= ARCH_REGS - 1; i++) begin
-        free_list[i] <= i + PHY_REGS / 2;
-        prrt[i]      <= 1'b1;
-      end
-      for (int i = ARCH_REGS; i <= PHY_REGS - 1; i++) begin
-        free_list[i] <= 'b0;
-        prrt[i]      <= 1'b0;
-      end
-      free_list_head_arch <= 7'd0;
-      free_list_head <= 7'd0;
-      free_list_tail <= 7'd32;
-      // Unity mapping
-      for (int i = 0; i <= ARCH_REGS - 1; i++) begin
-        arch_reg_map[i] <= i;
-        spec_reg_map[i] <= i;
-      end
-    end else begin
+always_ff @(posedge clk or negedge rst_n) begin
+  if (~rst_n) begin
+    rename_dispatch_out <= 'b0;
+
+    // Free list: tags ARCH_REGS .. PHY_REGS-1 are free at reset
+    for (int i = 0; i < PHY_REGS; i++) begin
+      if (i < NUM_FREE) free_list[i] <= TAG_WIDTH'(ARCH_REGS + i);
+      else              free_list[i] <= '0;
+    end
+
+    // Arch regs start out allocated (ready); all other phys regs are not
+    for (int i = 0; i < PHY_REGS; i++) begin
+      prrt[i] <= (i < ARCH_REGS);
+    end
+
+    free_list_head_arch <= '0;
+    free_list_head      <= '0;
+    free_list_tail      <= (TAG_WIDTH+1)'(NUM_FREE);
+
+    // Unity mapping
+    for (int i = 0; i < ARCH_REGS; i++) begin
+      arch_reg_map[i] <= TAG_WIDTH'(i);
+      spec_reg_map[i] <= TAG_WIDTH'(i);
+    end
+  end else begin
+    // ... unchanged begin
       if (branch_mispredict || exception_valid) begin
         spec_reg_map                     <= arch_reg_map;
         free_list_head                   <= free_list_head_arch;
