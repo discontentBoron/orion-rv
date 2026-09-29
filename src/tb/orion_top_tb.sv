@@ -20,6 +20,8 @@ module orion_top_tb;
     logic [TAG_WIDTH-1:0]   commit_pd;
     logic [TAG_WIDTH-1:0]   commit_old_pd;
 
+    logic [DATA_WIDTH-1:0]   imem_rdata;
+    logic [$clog2(IMEM_DEPTH)-1:0] imem_addr;
     logic mem_req_valid;
     logic mem_req_we;
     logic [DATA_WIDTH-1:0]  mem_req_addr;
@@ -29,9 +31,13 @@ module orion_top_tb;
     logic mem_resp_valid;
     logic [DATA_WIDTH-1:0]  mem_resp_rdata;
 
-    logic [31:0]    dmem [0:255];
-    logic   pending_load;
-    logic [31:0]    pending_rdata;
+    logic [31:0]    dmem [0:8191];
+    // logic   pending_load;
+    // logic [31:0]    pending_rdata;
+
+    // completion signals
+    logic        perf_bench_done;
+    logic [31:0] perf_bench_result;
 
     int pass_count  = 0;
     int fail_count  = 0;
@@ -46,13 +52,13 @@ module orion_top_tb;
 
     //Performance counters
     longint unsigned perf_cycle_count          = 0;
-    longint unsigned perf_retire_count         = 0;   // true architectural retirements (incl. non-reg-writing ops)
+    longint unsigned perf_retire_count         = 0;   // true architectural retirements
     longint unsigned perf_retire_branch_count  = 0;
     longint unsigned perf_retire_load_count    = 0;
     longint unsigned perf_retire_store_count   = 0;
     longint unsigned perf_dispatch_count       = 0;   // successful rename->ROB/IQ dispatch
     longint unsigned perf_issue_count          = 0;   // issue_valid pulses
-    longint unsigned perf_fetch_count          = 0;   // fetch_valid pulses (incl. wrong-path)
+    longint unsigned perf_fetch_count          = 0;   // fetch_valid pulses (including wrong-path)
     longint unsigned perf_redirect_count       = 0;   // mispredict + exception flush events
 
     longint unsigned perf_stall_cycles         = 0;   // rename_stall asserted
@@ -166,96 +172,28 @@ module orion_top_tb;
         .mem_req_wstrb(mem_req_wstrb),
         .mem_req_ready(mem_req_ready),
         .mem_resp_valid(mem_resp_valid),
-        .mem_resp_rdata(mem_resp_rdata)
+        .mem_resp_rdata(mem_resp_rdata),
+        .imem_addr(imem_addr),
+        .imem_rdata(imem_rdata)
     );
-
+    imem_model #(
+        .DEPTH(IMEM_DEPTH)
+        // .INIT_FILE(INIT_FILE)
+    ) imem_model_instance (
+        .clk(clk),
+        .addr(imem_addr),
+        .rdata(imem_rdata)
+    );
     initial clk = 1'b0;
-    always #5 clk = ~clk;
-
-    //Instruction Encodings
-    //---------------------------------------------------------------
-    function automatic [31:0] enc_r(
-        input [6:0] funct7, input [4:0] rs2, input [4:0] rs1,
-        input [2:0] funct3, input [4:0] rd
-    );
-        enc_r = {funct7, rs2, rs1, funct3, rd, 7'b0110011};
-    endfunction
-
-    function automatic [31:0] enc_i(
-        input signed [11:0] imm, input [4:0] rs1,
-        input [2:0] funct3, input [4:0] rd, input [6:0] opcode
-    );
-        enc_i = {imm[11:0], rs1, funct3, rd, opcode};
-    endfunction
-
-    function automatic [31:0] enc_s(
-        input signed [11:0] imm, input [4:0] rs2, input [4:0] rs1,
-        input [2:0] funct3
-    );
-        enc_s = {imm[11:5], rs2, rs1, funct3, imm[4:0], 7'b0100011};
-    endfunction
-
-    function automatic [31:0] enc_b(
-        input signed [12:0] imm, input [4:0] rs2, input [4:0] rs1,
-        input [2:0] funct3
-    );
-       enc_b = {imm[12], imm[10:5], rs2, rs1, funct3, imm[4:1], imm[11], 7'b1100011};
-    endfunction
-
-    function automatic [31:0] enc_addi(input [4:0] rd, input [4:0] rs1, input integer imm);
-        enc_addi = enc_i(imm[11:0], rs1, 3'b000, rd, 7'b0010011);
-    endfunction
-
-    function automatic [31:0] enc_add(input [4:0] rd, input [4:0] rs1, input [4:0] rs2);
-        enc_add = enc_r(7'b0000000, rs2, rs1, 3'b000, rd);
-    endfunction
-
-    function automatic [31:0] enc_mul(input [4:0] rd, input [4:0] rs1, input [4:0] rs2);
-        enc_mul = enc_r(7'b0000001, rs2, rs1, 3'b000, rd);
-    endfunction
-
-    function automatic [31:0] enc_div(input [4:0] rd, input [4:0] rs1, input [4:0] rs2);
-        enc_div = enc_r(7'b0000001, rs2, rs1, 3'b100, rd);
-    endfunction
-
-    function automatic [31:0] enc_lw(input [4:0] rd, input [4:0] rs1, input integer imm);
-        enc_lw = enc_i(imm[11:0], rs1, 3'b010, rd, 7'b0000011);
-    endfunction
-
-    function automatic [31:0] enc_sw(input [4:0] rs2, input [4:0] rs1, input integer imm);
-        enc_sw = enc_s(imm[11:0], rs2, rs1, 3'b010);
-    endfunction
-
-    function automatic [31:0] enc_beq(input [4:0] rs1, input [4:0] rs2, input integer imm);
-        enc_beq = enc_b(imm[12:0], rs2, rs1, 3'b000);
-    endfunction
-
-    function automatic [31:0] enc_bne(input [4:0] rs1, input [4:0] rs2, input integer imm);
-        enc_bne = enc_b(imm[12:0], rs2, rs1, 3'b001);
-    endfunction
-    //-----------------------------------------------------------------------------------------
-    //-----------------------------------------------------------------------------------------
-
-    
+    always #2 clk = ~clk;
 
     task automatic load_program;
         for (int i = 0; i < 256; i++) begin
-            dut.u_fetch.imem[i] = 32'h00000013; // ADDI x0,x0,0
+            imem_model_instance.mem[i] = 32'h00000013; // ADDI x0,x0,0
             dmem[i] = 32'd0;
         end
-        dut.u_fetch.imem[8'h00 >> 2] = enc_addi(5'd1, 5'd0, 6);
-        dut.u_fetch.imem[8'h04 >> 2] = enc_addi(5'd2, 5'd0, 7);
-        dut.u_fetch.imem[8'h08 >> 2] = enc_mul (5'd3, 5'd1, 5'd2);
-        dut.u_fetch.imem[8'h0c >> 2] = enc_addi(5'd4, 5'd3, 8);
-        dut.u_fetch.imem[8'h10 >> 2] = enc_div (5'd5, 5'd4, 5'd1);
-        dut.u_fetch.imem[8'h14 >> 2] = enc_addi(5'd6, 5'd0, 64);
-        dut.u_fetch.imem[8'h18 >> 2] = enc_sw  (5'd5, 5'd6, 4);
-        dut.u_fetch.imem[8'h1c >> 2] = enc_lw  (5'd7, 5'd6, 4);
-        dut.u_fetch.imem[8'h20 >> 2] = enc_add (5'd8, 5'd7, 5'd5);
-        dut.u_fetch.imem[8'h24 >> 2] = enc_beq(5'd8, 5'd8, 8);
-        dut.u_fetch.imem[8'h28 >> 2] = enc_sw(5'd1, 5'd6, 16);
-        dut.u_fetch.imem[8'h2c >> 2] = enc_add (5'd10, 5'd8, 5'd5);
-        dmem[32'h40 >> 2] = 32'd10;
+        $readmemh("../build/bench/sum.hex", imem_model_instance.mem);
+        dmem[32'h40 >> 2] = 32'd2000;
     endtask
 
     logic   slow_test;
@@ -264,28 +202,10 @@ module orion_top_tb;
     int     x15_commit_count  = 0;
     task automatic load_program_slow;
         for (int i = 0; i < 256; i++) begin
-            dut.u_fetch.imem[i] = 32'h00000013;
+            imem_model_instance.mem[i] = 32'h00000013;
             dmem[i] = 32'd0;
         end
-        dut.u_fetch.imem[8'h00 >> 2] = enc_addi(5'd1, 5'd0, 6);
-        dut.u_fetch.imem[8'h04 >> 2] = enc_addi(5'd2, 5'd0, 7);
-        dut.u_fetch.imem[8'h08 >> 2] = enc_mul (5'd3, 5'd1, 5'd2);
-        dut.u_fetch.imem[8'h0c >> 2] = enc_addi(5'd4, 5'd3, 8);
-        dut.u_fetch.imem[8'h10 >> 2] = enc_div (5'd5, 5'd4, 5'd1);   // x5 = 8, slow
-        dut.u_fetch.imem[8'h14 >> 2] = enc_addi(5'd6, 5'd0, 64);
-        dut.u_fetch.imem[8'h18 >> 2] = enc_beq (5'd5, 5'd5, 40);     // taken -> 0x40, resolves after the div
-        // wrong path
-        dut.u_fetch.imem[8'h1c >> 2] = enc_div (5'd12, 5'd5, 5'd1);
-        dut.u_fetch.imem[8'h20 >> 2] = enc_mul (5'd13, 5'd5, 5'd1);
-        dut.u_fetch.imem[8'h24 >> 2] = enc_lw  (5'd14, 5'd5, 0);
-        dut.u_fetch.imem[8'h28 >> 2] = enc_sw  (5'd5,  5'd6, 32);
-        dut.u_fetch.imem[8'h2c >> 2] = enc_addi(5'd15, 5'd5, 85);
-        // correct path
-        dut.u_fetch.imem[8'h40 >> 2] = enc_div (5'd12, 5'd4, 5'd5);
-        dut.u_fetch.imem[8'h44 >> 2] = enc_mul (5'd13, 5'd2, 5'd5);
-        dut.u_fetch.imem[8'h48 >> 2] = enc_lw  (5'd14, 5'd6, 4);
-        dut.u_fetch.imem[8'h4c >> 2] = enc_add (5'd16, 5'd12, 5'd13);
-        dut.u_fetch.imem[8'h50 >> 2] = enc_add (5'd10, 5'd16, 5'd14);
+        $readmemh("../build/orion_top_tb/slow.hex", imem_model_instance.mem);
         dmem[32'h08 >> 2] = 32'h0000BAD1;   // wrong-path load data
         dmem[32'h44 >> 2] = 32'd77;
     endtask
@@ -293,49 +213,76 @@ module orion_top_tb;
     logic fib_test;
     task automatic load_prog_fib;
         for (int i = 0; i < 256; i++) begin 
-            dut.u_fetch.imem[i] = 32'h00000013;
+            imem_model_instance.mem[i] = 32'h00000013;
             dmem[i] = 0; 
         end
-        dut.u_fetch.imem[8'h00>>2] = enc_addi(5'd1, 5'd0, 0);       // a = 0
-        dut.u_fetch.imem[8'h04>>2] = enc_addi(5'd2, 5'd0, 1);       // b = 1
-        dut.u_fetch.imem[8'h08>>2] = enc_addi(5'd3, 5'd0, 128);     // ptr = 0x80
-        dut.u_fetch.imem[8'h0c>>2] = enc_addi(5'd4, 5'd0, 168);     // end = 0x80 + 40
-        dut.u_fetch.imem[8'h10>>2] = enc_sw  (5'd1, 5'd3, 0);       // loop: store a
-        dut.u_fetch.imem[8'h14>>2] = enc_add (5'd5, 5'd1, 5'd2);    // next = a + b
-        dut.u_fetch.imem[8'h18>>2] = enc_addi(5'd1, 5'd2, 0);       // a = b
-        dut.u_fetch.imem[8'h1c>>2] = enc_addi(5'd2, 5'd5, 0);       // b = next
-        dut.u_fetch.imem[8'h20>>2] = enc_addi(5'd3, 5'd3, 4);
-        dut.u_fetch.imem[8'h24>>2] = enc_bne (5'd3, 5'd4, -20);     // -> 0x10
-        dut.u_fetch.imem[8'h28>>2] = enc_lw  (5'd10, 5'd3, -4);     // x10 = last stored
+        $readmemh("../build/orion_top_tb/fib.hex", imem_model_instance.mem);
     endtask
 
-    // Synthetic sum-of-squares loop: exercises ALU, MUL, DIV, BRANCH and LSU
-    // every iteration, for enough dynamic instructions (~185) to reach
-    // steady-state pipeline behavior rather than being dominated by fill/drain.
-    //   x1 = i (0..30), x2 = n = 30, x3 = running sum, x6 = store pointer
-    //   loop: i++; x4 = i*i; sum += x4; store sum @ [x6]; x6 += 4; loop while i != n
-    //   after loop: x5 = sum / n ; x10 = x5 + 1   (x10 commit is the completion marker)
+    // GCC-built sum(1..n) benchmark (sum.elf) It reads n from 0x3E0, sums 1..n, stores the result
+    // to 0x3F0, then sets a done flag at 0x3F4
     logic perf_test;
     task automatic load_prog_perf;
         for (int i = 0; i < 256; i++) begin
-            dut.u_fetch.imem[i] = 32'h00000013; // ADDI x0,x0,0 (NOP)
+            imem_model_instance.mem[i] = 32'h00000013; // ADDI x0,x0,0 (NOP)
             dmem[i] = 32'd0;
         end
-        dut.u_fetch.imem[8'h00 >> 2] = enc_addi(5'd1, 5'd0, 0);     // i = 0
-        dut.u_fetch.imem[8'h04 >> 2] = enc_addi(5'd2, 5'd0, 30);    // n = 30
-        dut.u_fetch.imem[8'h08 >> 2] = enc_addi(5'd3, 5'd0, 0);     // sum = 0
-        dut.u_fetch.imem[8'h0c >> 2] = enc_addi(5'd6, 5'd0, 100);   // store ptr = 0x64
-        dut.u_fetch.imem[8'h10 >> 2] = enc_addi(5'd1, 5'd1, 1);     // loop: i++
-        dut.u_fetch.imem[8'h14 >> 2] = enc_mul (5'd4, 5'd1, 5'd1);  // x4 = i*i
-        dut.u_fetch.imem[8'h18 >> 2] = enc_add (5'd3, 5'd3, 5'd4);  // sum += x4
-        dut.u_fetch.imem[8'h1c >> 2] = enc_sw  (5'd3, 5'd6, 0);     // store sum
-        dut.u_fetch.imem[8'h20 >> 2] = enc_addi(5'd6, 5'd6, 4);     // ptr += 4
-        dut.u_fetch.imem[8'h24 >> 2] = enc_bne (5'd1, 5'd2, -20);   // -> 0x10 while i != n
-        dut.u_fetch.imem[8'h28 >> 2] = enc_div (5'd5, 5'd3, 5'd2);  // x5 = sum / n
-        dut.u_fetch.imem[8'h2c >> 2] = enc_addi(5'd10, 5'd5, 1);    // x10 = x5 + 1  (completion marker)
+        $readmemh("../build/bench/sum.hex", imem_model_instance.mem);
+        dmem[32'h000003E0 >> 2] = 32'd10000;  
     endtask
 
-
+    logic ilp_test;
+    task automatic load_prog_ilp;
+        for (int i = 0; i < 256; i++) begin
+            imem_model_instance.mem[i] = 32'h00000013; // ADDI x0,x0,0 (NOP)
+            dmem[i] = 32'd0;
+        end
+        $readmemh("../build/bench/ilp.hex", imem_model_instance.mem);
+        dmem[32'h000003E0 >> 2] = 1000;
+        dmem[32'h000003E4 >> 2] = 32'h12345678;
+    endtask
+    logic mem_muldiv_test;
+    task automatic load_prog_mem_muldiv;
+        for (int i = 0; i < 256; i++) begin
+            imem_model_instance.mem[i] = 32'h00000013; // ADDI x0,x0,0 (NOP)
+            dmem[i] = 32'd0;
+        end
+        $readmemh("../build/bench/mem_muldiv.hex", imem_model_instance.mem);
+        dmem[32'h000003E0 >> 2] = 32'd1000;
+        dmem[32'h000003E4 >> 2] = 32'h12345678;
+    endtask
+    logic general_test;
+    task automatic load_prog_general;
+        for (int i = 0; i < 256; i++) begin
+            imem_model_instance.mem[i] = 32'h00000013; // ADDI x0,x0,0 (NOP)
+            dmem[i] = 32'd0;
+        end
+        $readmemh("../build/bench/general.hex", imem_model_instance.mem);
+        dmem[32'h000003E0 >> 2] = 32'd1000;
+        dmem[32'h000003E4 >> 2] = 32'h12345678;
+    endtask
+    logic balanced_test;
+    task automatic load_prog_balanced;
+        for (int i = 0; i < 256; i++) begin
+            imem_model_instance.mem[i] = 32'h00000013; // ADDI x0,x0,0 (NOP)
+            dmem[i] = 32'd0;
+        end
+        $readmemh("../build/bench/general_balanced.hex", imem_model_instance.mem);
+        dmem[32'h000003E0 >> 2] = 32'd1000;
+        dmem[32'h000003E4 >> 2] = 32'h12345678;
+    endtask
+    logic matmul_test;
+    task automatic load_prog_matmul;
+        for (int i = 0; i < 256; i++) begin
+            imem_model_instance.mem[i] = 32'h00000013; // ADDI x0,x0,0 (NOP)
+        end
+        for (int i = 0; i < 8192; i++) begin
+            dmem[i] = 32'd0;
+        end
+        $readmemh("../build/bench/matmul.hex", imem_model_instance.mem);
+        dmem[32'h000003E0 >> 2] = 32'd20;
+        dmem[32'h000003E4 >> 2] = 32'h12345678;
+    endtask
     task automatic check(input logic cond, input string msg);
         if (cond) begin
             pass_count++;
@@ -361,8 +308,8 @@ module orion_top_tb;
         rst_n = 1'b0;
         mem_resp_valid = 1'b0;
         mem_resp_rdata = '0;
-        pending_load = 1'b0;
-        pending_rdata = '0;
+        // pending_load = 1'b0;
+        // pending_rdata = '0;
         repeat (3) @(posedge clk);
         rst_n = 1'b1;
         @(posedge clk);
@@ -370,34 +317,105 @@ module orion_top_tb;
 
     // Simple one-entry memory response model. A request is accepted whenever
     // LSU presents it; a load response becomes valid for the following edge.
+    // always_comb begin
+    //     mem_req_ready = 1'b1;
+    //     mem_resp_valid = pending_load;
+    //     mem_resp_rdata = pending_rdata;
+    // end
+
+    int MEM_LAT_MIN = 1;
+    int MEM_LAT_MAX = 1;
+    bit MEM_RANDLAT;
+    initial begin
+        int fixed_lat;
+        MEM_RANDLAT = $test$plusargs("MEM_RANDLAT");
+        if ($value$plusargs("MEM_LAT=%d", fixed_lat)) begin
+            MEM_LAT_MIN = fixed_lat;
+            MEM_LAT_MAX = fixed_lat;
+        end else if (MEM_RANDLAT) begin
+            MEM_LAT_MIN = 1;
+            MEM_LAT_MAX = 6;   // widen/narrow as needed
+        end
+    end
+    logic        resp_pending;
+    int          resp_countdown;
+    logic [31:0] resp_rdata_q;
     always_comb begin
-        mem_req_ready = 1'b1;
-        mem_resp_valid = pending_load;
-        mem_resp_rdata = pending_rdata;
+        mem_req_ready  = 1'b1;                       // no backpressure on accept
+        mem_resp_valid = resp_pending && (resp_countdown == 0);
+        mem_resp_rdata = resp_rdata_q;
     end
 
     always @(posedge clk) begin
         if (!rst_n) begin
-            pending_load <= 1'b0;
-            pending_rdata <= '0;
+            resp_pending      <= 1'b0;
+            resp_countdown    <= 0;
+            resp_rdata_q      <= '0;
+            perf_bench_done   <= 1'b0;
+            perf_bench_result <= '0;
         end else begin
-            if (pending_load)
-                pending_load <= 1'b0;
+            // Response delivered this cycle -> the slot is free again.
+            if (resp_pending && resp_countdown == 0)
+                resp_pending <= 1'b0;
+            else if (resp_pending)
+                resp_countdown <= resp_countdown - 1;
+ 
             if (mem_req_valid && mem_req_ready) begin
                 if (mem_req_we) begin
                     for (int b = 0; b < 4; b++)
                         if (mem_req_wstrb[b])
                             dmem[mem_req_addr[31:2]][8*b +: 8] <= mem_req_wdata[8*b +: 8];
+ 
+                    if (mem_req_addr == 32'h000003F0) begin
+                        perf_bench_result <= mem_req_wdata;
+                        $display("BENCH RESULT STORE: value=%0d", mem_req_wdata);
+                    end
+                    if (mem_req_addr == 32'h000003F4) begin
+                        perf_bench_done <= 1'b1;
+                        $display("BENCH DONE STORE: cycle=%0d", perf_cycle_count + 1);
+                    end
                 end else begin
-                    pending_load <= 1'b1;
-                    pending_rdata <= dmem[mem_req_addr[31:2]];
+                    resp_rdata_q   <= dmem[mem_req_addr[31:2]];
+                    resp_pending   <= 1'b1;
+                    resp_countdown <= MEM_RANDLAT
+                                        ? $urandom_range(MEM_LAT_MIN, MEM_LAT_MAX) - 1
+                                        : MEM_LAT_MAX - 1;
                 end
             end
         end
     end
 
-    // CDB visibility monitor. These are the REAL internal CDB signals generated
-    // by the five execution units, not testbench-injected completions.
+    // always @(posedge clk) begin
+    //     if (!rst_n) begin
+    //         pending_load      <= 1'b0;
+    //         pending_rdata     <= '0;
+    //         perf_bench_done   <= 1'b0;
+    //         perf_bench_result <= '0;
+    //     end else begin
+    //         if (pending_load)
+    //             pending_load <= 1'b0;
+    //         if (mem_req_valid && mem_req_ready) begin
+    //             if (mem_req_we) begin
+    //                 for (int b = 0; b < 4; b++)
+    //                     if (mem_req_wstrb[b])
+    //                         dmem[mem_req_addr[31:2]][8*b +: 8] <= mem_req_wdata[8*b +: 8];
+
+    //                 // perf_test (sum.elf) completion protocol, same as benchmark_tb.sv
+    //                 if (mem_req_addr == 32'h000003F0) begin
+    //                     perf_bench_result <= mem_req_wdata;
+    //                     $display("BENCH RESULT STORE: value=%0d", mem_req_wdata);
+    //                 end
+    //                 if (mem_req_addr == 32'h000003F4) begin
+    //                     perf_bench_done <= 1'b1;
+    //                     $display("BENCH DONE STORE: cycle=%0d", perf_cycle_count + 1);
+    //                 end
+    //             end else begin
+    //                 pending_load <= 1'b1;
+    //                 pending_rdata <= dmem[mem_req_addr[31:2]];
+    //             end
+    //         end
+    //     end
+    // end
     always @(posedge clk) begin
         if (rst_n) begin
             if (dut.cdb_valid_i[CDB_PORT_ALU])    cdb_alu_count++;
@@ -409,18 +427,18 @@ module orion_top_tb;
             if (dut.cdb_valid_i[CDB_PORT_BRANCH] && dut.cdb_mispredict_i[CDB_PORT_BRANCH]) begin
                 branch_mispredict_count++;
                 branch_cdb_target_seen = dut.cdb_target_pc_i[CDB_PORT_BRANCH];
-                $display("BRANCH CDB: rob=%0d target=%08h mispredict=%0b",
-                         dut.cdb_rob_tag_i[CDB_PORT_BRANCH],
-                         dut.cdb_target_pc_i[CDB_PORT_BRANCH],
-                         dut.cdb_mispredict_i[CDB_PORT_BRANCH]);
+                // $display("BRANCH CDB: rob=%0d target=%08h mispredict=%0b",
+                //          dut.cdb_rob_tag_i[CDB_PORT_BRANCH],
+                //          dut.cdb_target_pc_i[CDB_PORT_BRANCH],
+                //          dut.cdb_mispredict_i[CDB_PORT_BRANCH]);
             end
 
             if (branch_mispredict)
                 rob_redirect_target_seen = redirect_pc;
 
-            if (commit_valid)
-                $display("COMMIT: rd=x%0d pd=%0d value=%08h old_pd=%0d",
-                         commit_rd, commit_pd, dut.u_regread.prf[commit_pd], commit_old_pd);
+            // if (commit_valid)
+            //     $display("COMMIT: rd=x%0d pd=%0d value=%08h old_pd=%0d",
+            //              commit_rd, commit_pd, dut.u_regread.prf[commit_pd], commit_old_pd);
         end
     end
 
@@ -431,30 +449,25 @@ module orion_top_tb;
     logic   loop_pred_test;
     task automatic load_program_loop;
         for (int i = 0; i < 256; i++) begin
-            dut.u_fetch.imem[i] = 32'h00000013;
+            imem_model_instance.mem[i] = 32'h00000013;
             dmem[i] = 32'd0;
         end
-        dut.u_fetch.imem[8'h00 >> 2] = enc_addi(5'd1, 5'd0, 0);    // i = 0
-        dut.u_fetch.imem[8'h04 >> 2] = enc_addi(5'd2, 5'd0, 8);    // n = 8
-        dut.u_fetch.imem[8'h08 >> 2] = enc_addi(5'd1, 5'd1, 1);    // loop: i++
-        dut.u_fetch.imem[8'h0c >> 2] = enc_bne (5'd1, 5'd2, -4);   // taken 7 times, then falls through
-        dut.u_fetch.imem[8'h10 >> 2] = enc_addi(5'd3, 5'd1, 100);  // x3 = 108
+        $readmemh("../build/orion_top_tb/loop.hex", imem_model_instance.mem);
     endtask
 
-    always @(posedge clk) begin
-    if (dut.execute_out.valid) begin
-            $display(
-                "EXEC: pc=%08h uop=%0d fu=%0d rob=%0d s1=%08h s2=%08h",
-                dut.execute_out.pc,
-                dut.execute_out.exec_unit_uop,
-                dut.execute_out.func_unit_type,
-                dut.execute_out.rob_tag,
-                dut.execute_out.src1_data,
-                dut.execute_out.src2_data
-            );
-        end
-    end
-
+    // always @(posedge clk) begin
+    // if (dut.execute_out.valid) begin
+    //         $display(
+    //             "EXEC: pc=%08h uop=%0d fu=%0d rob=%0d s1=%08h s2=%08h",
+    //             dut.execute_out.pc,
+    //             dut.execute_out.exec_unit_uop,
+    //             dut.execute_out.func_unit_type,
+    //             dut.execute_out.rob_tag,
+    //             dut.execute_out.src1_data,
+    //             dut.execute_out.src2_data
+    //         );
+    //     end
+    // end
     always @(posedge clk) 
         if (rst_n && dut.regread_lsu_in.valid && !dut.lsu_ready)
             $error("LSU DROP: pc=%08h rob=%0d", dut.regread_lsu_in.pc, dut.execute_out.rob_tag);
@@ -479,6 +492,11 @@ module orion_top_tb;
         loop_pred_test  = $test$plusargs("LOOP");
         fib_test        = $test$plusargs("FIB");
         perf_test       = $test$plusargs("PERF");
+        ilp_test        = $test$plusargs("ILP");
+        mem_muldiv_test = $test$plusargs("MEM_MULDIV");
+        general_test    = $test$plusargs("GEN");
+        balanced_test   = $test$plusargs("BAL");
+        matmul_test     = $test$plusargs("MATMUL");
         if (perf_test) begin
             load_prog_perf();
             $display("++++++++++++++++++++++BEGINNING PERFORMANCE BENCHMARK++++++++++++++++++++++");
@@ -491,23 +509,40 @@ module orion_top_tb;
         end else if(loop_pred_test) begin
             load_program_loop();
             $display("++++++++++++++++++++++BEGINNING LOOP PREDICTOR TEST++++++++++++++++++++++");
+        end else if(ilp_test) begin
+            load_prog_ilp();
+            $display("++++++++++++++++++++++ILP PERFORMANCE TEST++++++++++++++++++++++");
+        end else if (mem_muldiv_test) begin
+            load_prog_mem_muldiv();
+            $display("++++++++++++++++++++++MEMORY & MUL DIV TEST++++++++++++++++++++++");
+        end else if (general_test) begin 
+            load_prog_general();
+            $display("++++++++++++++++++++++GENERAL TEST++++++++++++++++++++++");
+        end else if (balanced_test) begin
+            load_prog_balanced();
+            $display("++++++++++++++++++++++GENERAL BALANCED TEST++++++++++++++++++++++");
+        end else if (matmul_test) begin
+            load_prog_matmul();
+            $display("++++++++++++++++++++++MATRIX MULTIPLY TEST++++++++++++++++++++++");
         end else
             load_program();
         reset_dut();
 
         
-        // Wait for the last instruction of the selected program to commit.
-        if (loop_pred_test) 
-            wait (commit_valid === 1'b1 && commit_rd === 5'd3);    // addi x3, x1, 100
-        else
-            wait (commit_valid === 1'b1 && commit_rd === 5'd10);   // basic + slow tests
-        wait (dut.u_sb.empty);
-        repeat (3) @(posedge clk);
+        // perf_test (sum.elf) signals completion uisng memory-mapped stores
+        if (perf_test || ilp_test || mem_muldiv_test || general_test || balanced_test || matmul_test) begin
+            wait (perf_bench_done === 1'b1);
+            repeat (3) @(posedge clk);
+        end else begin
+            if (loop_pred_test)
+                wait (commit_valid === 1'b1 && commit_rd === 5'd3);
+            else
+                wait (commit_valid === 1'b1 && commit_rd === 5'd10);
+            wait (dut.u_sb.empty);
+            repeat (3) @(posedge clk);
+        end
         if (perf_test) begin : perf_checks
-            check(dut.u_regread.prf[dut.u_rename.arch_reg_map[3]] === 32'd9455,
-                  "x3 sum-of-squares(1..30) = 9455");
-            check(dut.u_regread.prf[dut.u_rename.arch_reg_map[5]] === 32'd315,
-                  "x5 = sum/n = 315");
+            check(perf_bench_result === 32'd50_005_000, "sum(1..100) = 5050");
         end else if (fib_test) begin : fib_checks
             int expected [10] = '{0, 1, 1, 2, 3, 5, 8, 13, 21, 34};
             for (int k = 0; k < 10; k++)
@@ -545,6 +580,39 @@ module orion_top_tb;
             check(dut.u_rename.arch_reg_map[15] === 5'd15 && x15_commit_count == 0, "wrong-path x15 never committed");
             check(dmem[32'h60 >> 2] === 32'd0,  "wrong-path store did not modify memory");
             check(dmem[32'h44 >> 2] === 32'd77, "mem[0x44] untouched");
+        end else if(ilp_test) begin 
+            check(
+                perf_bench_result === 32'd453521456,
+                $sformatf(
+                    "ILP benchmark result = %0d (got %0d)",
+                    32'd453521456,
+                    perf_bench_result
+                )
+            );
+        end else if (mem_muldiv_test) begin
+            check(perf_bench_result === 32'h4691FED5,
+                $sformatf("MEM+MULDIV benchmark result = 0x%08h (got 0x%08h)",
+                32'h4691FED5, perf_bench_result)
+            );
+        end else if (general_test) begin
+            check(perf_bench_result === 32'hEA897FD6,
+                $sformatf("GENERAL benchmark result = 0x%08h (got 0x%08h)",
+                32'hEA897FD6, perf_bench_result));
+        end else if (balanced_test) begin
+            check(perf_bench_result === 32'hF2127ECE,
+                $sformatf(
+                "BALANCED benchmark result = 0x%08h (got 0x%08h)",
+                32'hF2127ECE,
+                perf_bench_result
+                )
+            );
+        end else if (matmul_test) begin
+            check(perf_bench_result === 32'h2C2AF01D,
+                $sformatf(
+                "MATMUL benchmark result = 0x%08h (got 0x%08h)",
+                32'h2C2AF01D,
+                perf_bench_result
+            ));
         end else begin
             check(cdb_alu_count > 0,    "real ALU CDB activity observed");
             check(cdb_mul_count > 0,    "real MUL CDB activity observed");
@@ -597,7 +665,7 @@ module orion_top_tb;
         $finish;
     end
     initial begin : watchdog
-        #200000;
+        #2000000;
         $display("\n*** WATCHDOG TIMEOUT ***");
         $display("SUMMARY SO FAR: %0d passed, %0d failed", pass_count, fail_count);
         $finish;
