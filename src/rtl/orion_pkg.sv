@@ -2,16 +2,25 @@ package orion_pkg;
   parameter PROJECT_NAME = "orion_rv";
   parameter ARCH_REGS = 32;
   parameter PHY_REGS = 64;
+  parameter NUM_FREE = PHY_REGS - ARCH_REGS;
   parameter REG_ADDR_WIDTH = $clog2(ARCH_REGS);
   parameter TAG_WIDTH = $clog2(PHY_REGS);
   parameter DATA_WIDTH = 32;
-  parameter ROB_SIZE = 32;
-  parameter ROB_PTR = $clog2(ROB_SIZE);
-  parameter IQ_SIZE = 16;
+  // parameter ROB_SIZE = 32;
+  // parameter ROB_PTR = $clog2(ROB_SIZE);
+  // parameter IQ_SIZE = 16;
   parameter NUM_CDB_PORTS = 5;
   parameter logic [DATA_WIDTH-1:0] DEFAULT_EXCEPT_PC = 32'h0;
   parameter IMEM_DEPTH = 256;
-
+  `ifndef ORION_ROB_SIZE
+    `define ORION_ROB_SIZE 32
+  `endif
+  `ifndef ORION_IQ_SIZE
+    `define ORION_IQ_SIZE 16
+  `endif
+  parameter ROB_SIZE = `ORION_ROB_SIZE;
+  parameter ROB_PTR  = $clog2(ROB_SIZE);
+  parameter IQ_SIZE  = `ORION_IQ_SIZE;
   parameter int CDB_PORT_ALU    = 0;
   parameter int CDB_PORT_MUL    = 1;
   parameter int CDB_PORT_DIV    = 2;
