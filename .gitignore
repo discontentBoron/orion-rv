@@ -82,3 +82,4 @@ innovus.cmd* # Innovus command history
 *.old
 *.json
 *.min_layer
+*.tar.gz
