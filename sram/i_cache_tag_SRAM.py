@@ -15,7 +15,7 @@ nominal_corner_only = False
 process_corners = ["SS"]
 supply_voltages = [0.95]
 temperatures = [125]
-
+analytical_delay = False
 use_specified_corners = [
     ("SS", 0.95, 125)
 ]
