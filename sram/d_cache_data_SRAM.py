@@ -11,18 +11,17 @@ nominal_corner_only = False
 use_specified_corners = [
     ("SS", 0.95, 125)
 ]
-only_use_config_corners = True
 
-
-route_supplies = False
+route_supplies = "ring"
 check_lvsdrc = True
 analytical_delay = False
 process_corners = ["SS"]
 supply_voltages = [0.95]
 temperatures = [125]
 
-load_scales = [0.5, 1, 4]
-slew_scales = [0.5, 1]
+load_scales = [0.5, 1, 4, 8, 16]
+slew_scales = [0.5, 1, 2, 4, 8, 16]
+
 
 output_name = "dcache_data_sram_{0}rw{1}r{2}w_{3}_{4}_{5}".format(
     num_rw_ports,
