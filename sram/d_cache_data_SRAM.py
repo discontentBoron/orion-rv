@@ -19,8 +19,13 @@ process_corners = ["SS"]
 supply_voltages = [0.95]
 temperatures = [125]
 
-load_scales = [0.5, 1, 4, 8, 16]
-slew_scales = [0.5, 1, 2, 4, 8, 16]
+
+num_threads = 8
+num_sim_threads = 8
+
+# Characterization grid
+load_scales = [1, 8, 16]
+slew_scales = [0.5, 2, 8, 16]
 
 
 output_name = "dcache_data_sram_{0}rw{1}r{2}w_{3}_{4}_{5}".format(

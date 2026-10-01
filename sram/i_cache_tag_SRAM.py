@@ -24,9 +24,12 @@ use_specified_corners = [
 route_supplies = "ring"
 check_lvsdrc = True
 
+num_threads = 4
+num_sim_threads = 4
+
 # Characterization grid
-load_scales = [0.5, 1, 4, 8, 16]
-slew_scales = [0.5, 1, 2, 4, 8, 16]
+load_scales = [1, 8, 16]
+slew_scales = [0.5, 2, 8, 16]
 
 output_name = "icache_tag_sram_{0}rw{1}r{2}w_{3}_{4}_{5}".format(
     num_rw_ports,
