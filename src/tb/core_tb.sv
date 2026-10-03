@@ -19,9 +19,14 @@ module core_tb;
     logic [REG_ADDR_WIDTH-1:0]  commit_rd;
     logic [TAG_WIDTH-1:0]   commit_pd;
     logic [TAG_WIDTH-1:0]   commit_old_pd;
+    localparam int IMEM_DEPTH = 256;
+    logic                   imem_req_valid;
+    logic                   imem_req_ready;
+    logic [DATA_WIDTH-1:0]  imem_req_addr;
+    logic                   imem_resp_valid;
+    logic [DATA_WIDTH-1:0]  imem_resp_data;
+    logic                   imem_resp_last;
 
-    logic [DATA_WIDTH-1:0]   imem_rdata;
-    logic [$clog2(IMEM_DEPTH)-1:0] imem_addr;
     logic dmem_req_valid;
     logic dmem_req_we;
     logic [DATA_WIDTH-1:0]  dmem_req_addr;
@@ -148,13 +153,15 @@ module core_tb;
         $display("================================================================\n");
     endtask
     //===========================================================
-    orion_core #(
-        .IMEM_DEPTH(IMEM_DEPTH)
-    ) dut (
+    orion_core dut (
         .clk            (clk),
         .rst_n          (rst_n),
-        .imem_addr      (imem_addr),
-        .imem_rdata     (imem_rdata),
+        .imem_req_valid (imem_req_valid),
+        .imem_req_ready (imem_req_ready),
+        .imem_req_addr  (imem_req_addr),
+        .imem_resp_valid(imem_resp_valid),
+        .imem_resp_data (imem_resp_data),
+        .imem_resp_last (imem_resp_last),
         .dmem_req_valid (dmem_req_valid),
         .dmem_req_we    (dmem_req_we),
         .dmem_req_addr  (dmem_req_addr),
@@ -164,6 +171,7 @@ module core_tb;
         .dmem_resp_valid(dmem_resp_valid),
         .dmem_resp_rdata(dmem_resp_rdata)
     );
+
 
     // core no longer exports observability ports; tap the internal signals
     // hierarchically so the rest of the testbench is unchanged.
@@ -184,12 +192,28 @@ module core_tb;
 
     imem_model #(
         .DEPTH(IMEM_DEPTH)
-        // .INIT_FILE(INIT_FILE)
     ) imem_model_instance (
-        .clk(clk),
-        .addr(imem_addr),
-        .rdata(imem_rdata)
+        .clk        (clk),
+        .rst_n      (rst_n),
+        .req_valid  (imem_req_valid),
+        .req_ready  (imem_req_ready),
+        .req_addr   (imem_req_addr),
+        .resp_valid (imem_resp_valid),
+        .resp_data  (imem_resp_data),
+        .resp_last  (imem_resp_last)
     );
+    initial begin
+        int il;
+        if ($value$plusargs("IMEM_LAT=%d", il)) begin
+            imem_model_instance.lat_min = il;
+            imem_model_instance.lat_max = il;
+        end else if ($test$plusargs("IMEM_RANDLAT")) begin
+            imem_model_instance.lat_min = 1;
+            imem_model_instance.lat_max = 25;
+            imem_model_instance.gap_pct = 25;
+        end
+    end
+
     initial clk = 1'b0;
     always #2 clk = ~clk;
 

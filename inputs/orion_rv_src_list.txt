@@ -8,8 +8,10 @@
 ../src/rtl/orion_pkg.sv
 
 // SRAM Models
-//../sram/sram_model.v
-
+../sram/icache_tag_sram_1rw0r0w_20_128_freepdk45/icache_tag_sram_1rw0r0w_20_128_freepdk45.v
+../sram/icache_data_sram_1rw0r0w_32_1024_freepdk45/icache_data_sram_1rw0r0w_32_1024_freepdk45.v
+../sram/dcache_tag_sram_1rw0r0w_21_64_freepdk45/dcache_tag_sram_1rw0r0w_21_64_freepdk45.v
+../sram/dcache_data_sram_1rw0r0w_32_512_freepdk45/dcache_data_sram_1rw0r0w_32_512_freepdk45.v
 // RTL Source
 /* rtl files here */
 

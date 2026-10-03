@@ -8,8 +8,13 @@ module orion_core #(
     input  logic                            rst_n,
 
     // Instruction memory interface
-    output logic [$clog2(IMEM_DEPTH)-1:0]   imem_addr,
-    input  logic [DATA_WIDTH-1:0]           imem_rdata,
+    output logic                            imem_req_valid,
+    input  logic                            imem_req_ready,
+    output logic [DATA_WIDTH-1:0]           imem_req_addr,
+    input  logic                            imem_resp_valid,
+    input  logic [DATA_WIDTH-1:0]           imem_resp_data,
+    input  logic                            imem_resp_last,
+
 
     // Data memory interface
     output logic                            dmem_req_valid,
@@ -25,6 +30,10 @@ module orion_core #(
     logic [DATA_WIDTH-1:0]  fetch_pc;
     logic [DATA_WIDTH-1:0]  fetch_instr;
     logic                   fetch_valid;
+    logic [DATA_WIDTH-1:0]  ic_req_addr;      // fetch -> icache (pc_next)
+    logic                   ic_resp_valid;    // icache -> fetch (hit for pc_q)
+    logic [DATA_WIDTH-1:0]  ic_resp_data;
+
     logic                   rename_stall;
     logic                   rob_full;
     logic                   iq_full;
@@ -163,17 +172,16 @@ module orion_core #(
     logic redirect_valid_i;
     assign redirect_valid_i = branch_mispredict | exception_valid;
 
-    fetch_unit #(
-        .IMEM_DEPTH(IMEM_DEPTH)
-    ) u_fetch (
+    fetch_unit u_fetch (
         .clk                (clk),
         .rst_n              (rst_n),
         .stall              (rename_stall),
         .redirect_valid     (redirect_valid_i),
         .redirect_pc        (redirect_pc),
         .fetch_pc           (fetch_pc),
-        .imem_addr          (imem_addr),
-        .imem_rdata         (imem_rdata),
+        .imem_addr          (ic_req_addr),
+        .imem_valid         (ic_resp_valid),
+        .imem_rdata         (ic_resp_data),
         .fetch_predicted_pc (fetch_predicted_pc),
         .fetch_instr        (fetch_instr),
         .fetch_valid        (fetch_valid),
@@ -181,6 +189,20 @@ module orion_core #(
         .bp_update_pc       (branch_wb.pc),
         .bp_update_taken    (branch_wb.taken),
         .bp_update_target   (branch_wb.target_pc)
+    );
+    icache u_icache (
+        .clk                (clk),
+        .rst_n              (rst_n),
+        .invalidate         (1'b0),             // no FENCE.I support yet
+        .req_addr           (ic_req_addr),
+        .resp_valid         (ic_resp_valid),
+        .resp_data          (ic_resp_data),
+        .mem_req_valid      (imem_req_valid),
+        .mem_req_ready      (imem_req_ready),
+        .mem_req_addr       (imem_req_addr),
+        .mem_resp_valid     (imem_resp_valid),
+        .mem_resp_data      (imem_resp_data),
+        .mem_resp_last      (imem_resp_last)
     );
 
     decode_unit u_decode (

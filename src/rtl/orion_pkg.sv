@@ -6,12 +6,12 @@ package orion_pkg;
   parameter REG_ADDR_WIDTH = $clog2(ARCH_REGS);
   parameter TAG_WIDTH = $clog2(PHY_REGS);
   parameter DATA_WIDTH = 32;
+  parameter ADDR_WIDTH = 32;
   // parameter ROB_SIZE = 32;
   // parameter ROB_PTR = $clog2(ROB_SIZE);
   // parameter IQ_SIZE = 16;
   parameter NUM_CDB_PORTS = 5;
   parameter logic [DATA_WIDTH-1:0] DEFAULT_EXCEPT_PC = 32'h0;
-  parameter IMEM_DEPTH = 256;
   `ifndef ORION_ROB_SIZE
     `define ORION_ROB_SIZE 32
   `endif

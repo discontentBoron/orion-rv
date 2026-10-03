@@ -1,7 +1,6 @@
 import orion_pkg::*;
 
 module fetch_unit #(
-    parameter int   IMEM_DEPTH      = 256,          // words
     parameter int   BTB_ENTRIES     = 16,
     parameter int   PHT_ENTRIES     = 64
 ) (
@@ -14,8 +13,10 @@ module fetch_unit #(
     // Redirect from ROB commit-time misprediction / exception resolution
     input  logic                    redirect_valid,
     input  logic [DATA_WIDTH-1:0]   redirect_pc,
+    // I-cache interface
     input  logic [DATA_WIDTH-1:0]   imem_rdata,
-    output  logic [$clog2(IMEM_DEPTH)-1:0] imem_addr,
+    input  logic                    imem_valid,
+    output logic [DATA_WIDTH-1:0]  imem_addr,
     // Branch Predictor state update signals from branch unit 
     input  logic                    bp_update_valid,
     input  logic [DATA_WIDTH-1:0]   bp_update_pc,
@@ -33,10 +34,7 @@ module fetch_unit #(
     // via `dut.imem[i] = ...` without needing a hex file for quick bring-up.
     logic [DATA_WIDTH-1:0] pc_q;
     logic [DATA_WIDTH-1:0] pc_next;
-    logic [DATA_WIDTH-1:0] word_addr;
-
-    assign word_addr = pc_next[$clog2(IMEM_DEPTH)+1:2]; // word index, drop byte offset bits
-    assign imem_addr = word_addr[$clog2(IMEM_DEPTH)-1:0];
+    assign imem_addr    = pc_next;
     localparam int BTB_IDX_W = $clog2(BTB_ENTRIES);
     localparam int BTB_TAG_W = DATA_WIDTH - 2 - BTB_IDX_W;
     localparam int PHT_IDX_W = $clog2(PHT_ENTRIES);
@@ -98,7 +96,7 @@ module fetch_unit #(
             pc_next = '0;
         end else if (redirect_valid)
             pc_next = redirect_pc;
-        else if (stall)
+        else if (stall || !imem_valid)
             pc_next = pc_q;
         else
             pc_next = pred_pc;
@@ -134,6 +132,11 @@ module fetch_unit #(
                 fetch_pc            <= fetch_pc;
                 fetch_instr         <= fetch_instr;
                 fetch_predicted_pc  <= fetch_predicted_pc;
+            end else if(!imem_valid) begin 
+                fetch_valid         <= 1'b0;
+                fetch_pc            <= '0;
+                fetch_instr         <= '0;
+                fetch_predicted_pc  <= '0;
             end else begin
                 fetch_valid         <= 1'b1;
                 fetch_pc            <= pc_q;

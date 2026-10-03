@@ -166,10 +166,8 @@ module orion_top #(
     // Fetch / Decode
     logic redirect_valid_i;
     assign redirect_valid_i = branch_mispredict | exception_valid;
-
-    fetch_unit #(
-        .IMEM_DEPTH(IMEM_DEPTH)
-    ) u_fetch (
+    logic imem_valid;
+    fetch_unit u_fetch (
         .clk                (clk),
         .rst_n              (rst_n),
         .stall              (rename_stall),
@@ -178,6 +176,7 @@ module orion_top #(
         .fetch_pc           (fetch_pc),
         .imem_addr          (imem_addr),
         .imem_rdata         (imem_rdata),
+        .imem_valid         (imem_valid),
         .fetch_predicted_pc (fetch_predicted_pc),
         .fetch_instr        (fetch_instr),
         .fetch_valid        (fetch_valid),
