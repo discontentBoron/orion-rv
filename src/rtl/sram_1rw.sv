@@ -25,7 +25,17 @@ module sram_1rw #(
   localparam int SIM_T_HOLD = 1;   // model default
   generate
     if (MACRO_ID == 0) begin : g_icache_data
-      icache_data_sram_1rw0r0w_32_1024_freepdk45 #(
+      `ifdef SYNTH_MACRO
+        icache_data_sram_1rw0r0w_32_1024_freepdk45 icache_data_sram (
+        .clk0  (clk),
+        .csb0  (~en),
+        .web0  (~we),
+        .addr0 (addr),
+        .din0  (din),
+        .dout0 (dout)
+      );
+      `else
+        icache_data_sram_1rw0r0w_32_1024_freepdk45 #(
         .DATA_WIDTH (WIDTH),
         .ADDR_WIDTH ($clog2(DEPTH)),
         .RAM_DEPTH  (DEPTH),
@@ -40,22 +50,34 @@ module sram_1rw #(
         .din0  (din),
         .dout0 (dout)
       );
+      `endif
     end else if (MACRO_ID == 1) begin : g_icache_tag
-      icache_tag_sram_1rw0r0w_20_128_freepdk45 #(
+      `ifdef SYNTH_MACRO
+        icache_tag_sram_1rw0r0w_20_128_freepdk45 icache_tag_sram (
+          .clk0  (clk),
+          .csb0  (~en),
+          .web0  (~we),
+          .addr0 (addr),
+          .din0  (din),
+          .dout0 (dout)
+        );
+      `else
+        icache_tag_sram_1rw0r0w_20_128_freepdk45 #(
         .DATA_WIDTH (WIDTH),
         .ADDR_WIDTH ($clog2(DEPTH)),
         .RAM_DEPTH  (DEPTH),
         .DELAY      (SIM_DELAY),
         .VERBOSE    (0),
         .T_HOLD     (SIM_T_HOLD)
-      ) icache_tag_sram (
-        .clk0  (clk),
-        .csb0  (~en),
-        .web0  (~we),
-        .addr0 (addr),
-        .din0  (din),
-        .dout0 (dout)
+        ) icache_tag_sram (
+          .clk0  (clk),
+          .csb0  (~en),
+          .web0  (~we),
+          .addr0 (addr),
+          .din0  (din),
+          .dout0 (dout)
       );
+      `endif
     end else if (MACRO_ID == 2) begin : g_dcache_data
       dcache_data_sram_1rw0r0w_32_512_freepdk45 #(
         .DATA_WIDTH (WIDTH),
@@ -74,14 +96,8 @@ module sram_1rw #(
         .dout0 (dout)
       );
     end else begin : g_dcache_tag
-      dcache_tag_sram_1rw0r0w_21_64_freepdk45 #(
-        .DATA_WIDTH (WIDTH),
-        .ADDR_WIDTH ($clog2(DEPTH)),
-        .RAM_DEPTH  (DEPTH),
-        .DELAY      (SIM_DELAY),
-        .VERBOSE    (0),
-        .T_HOLD     (SIM_T_HOLD)
-      ) dcache_tag_sram (
+      `ifdef SYNTH_MACRO
+        dcache_tag_sram_1rw0r0w_21_64_freepdk45 dcache_tag_sram (
         .clk0  (clk),
         .csb0  (~en),
         .web0  (~we),
@@ -89,6 +105,23 @@ module sram_1rw #(
         .din0  (din),
         .dout0 (dout)
       );
+      `else
+        dcache_tag_sram_1rw0r0w_21_64_freepdk45 #(
+        .DATA_WIDTH (WIDTH),
+        .ADDR_WIDTH ($clog2(DEPTH)),
+        .RAM_DEPTH  (DEPTH),
+        .DELAY      (SIM_DELAY),
+        .VERBOSE    (0),
+        .T_HOLD     (SIM_T_HOLD)
+        ) dcache_tag_sram (
+          .clk0  (clk),
+          .csb0  (~en),
+          .web0  (~we),
+          .addr0 (addr),
+          .din0  (din),
+          .dout0 (dout)
+        );
+      `endif
     end
   endgenerate
 `else
