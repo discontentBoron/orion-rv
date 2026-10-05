@@ -1,4 +1,3 @@
-
 //
 // MACRO_ID selects which OpenRAM macro is used when USE_OPENRAM is defined:
 //   0 = icache_data_sram   1 = icache_tag_sram
@@ -79,6 +78,17 @@ module sram_1rw #(
       );
       `endif
     end else if (MACRO_ID == 2) begin : g_dcache_data
+      `ifdef SYNTH_MACRO
+      dcache_data_sram_1rw0r0w_32_512_freepdk45 dcache_data_sram (
+        .clk0  (clk),
+        .csb0  (~en),
+        .web0  (~we),
+        .wmask0(wmask),
+        .addr0 (addr),
+        .din0  (din),
+        .dout0 (dout)
+      );
+      `else
       dcache_data_sram_1rw0r0w_32_512_freepdk45 #(
         .DATA_WIDTH (WIDTH),
         .ADDR_WIDTH ($clog2(DEPTH)),
@@ -90,11 +100,12 @@ module sram_1rw #(
         .clk0  (clk),
         .csb0  (~en),
         .web0  (~we),
-    .wmask0(wmask),
+        .wmask0(wmask),
         .addr0 (addr),
         .din0  (din),
         .dout0 (dout)
       );
+      `endif
     end else begin : g_dcache_tag
       `ifdef SYNTH_MACRO
         dcache_tag_sram_1rw0r0w_21_64_freepdk45 dcache_tag_sram (
