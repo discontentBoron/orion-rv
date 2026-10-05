@@ -19,14 +19,15 @@ module core_tb;
     logic [REG_ADDR_WIDTH-1:0]  commit_rd;
     logic [TAG_WIDTH-1:0]   commit_pd;
     logic [TAG_WIDTH-1:0]   commit_old_pd;
-    localparam int IMEM_DEPTH = 256;
+
+    // I-cache line-refill port (core <-> instruction backing store)
+    localparam int IMEM_DEPTH = 256;          // words (no longer in orion_pkg)
     logic                   imem_req_valid;
     logic                   imem_req_ready;
     logic [DATA_WIDTH-1:0]  imem_req_addr;
     logic                   imem_resp_valid;
     logic [DATA_WIDTH-1:0]  imem_resp_data;
     logic                   imem_resp_last;
-
     logic dmem_req_valid;
     logic dmem_req_we;
     logic [DATA_WIDTH-1:0]  dmem_req_addr;
@@ -34,7 +35,8 @@ module core_tb;
     logic [3:0] dmem_req_wstrb;
     logic dmem_req_ready;
     logic dmem_resp_valid;
-    logic [DATA_WIDTH-1:0]  dmem_resp_rdata;
+    logic [DATA_WIDTH-1:0]  dmem_resp_data;
+    logic dmem_resp_last;
 
     logic [31:0]    dmem [0:8191];
     // logic   pending_load;
@@ -169,9 +171,9 @@ module core_tb;
         .dmem_req_wstrb (dmem_req_wstrb),
         .dmem_req_ready (dmem_req_ready),
         .dmem_resp_valid(dmem_resp_valid),
-        .dmem_resp_rdata(dmem_resp_rdata)
+        .dmem_resp_data (dmem_resp_data),
+        .dmem_resp_last (dmem_resp_last)
     );
-
 
     // core no longer exports observability ports; tap the internal signals
     // hierarchically so the rest of the testbench is unchanged.
@@ -190,6 +192,9 @@ module core_tb;
     assign commit_pd         = dut.u_rob.commit_pd;
     assign commit_old_pd     = dut.u_rob.commit_old_pd;
 
+    // Instance name and `mem` array are unchanged so the load_prog_* tasks
+    // keep working. Plusargs: +IMEM_LAT=<n> fixed refill latency,
+    // +IMEM_RANDLAT random latency 1..6 with 25% beat gaps.
     imem_model #(
         .DEPTH(IMEM_DEPTH)
     ) imem_model_instance (
@@ -209,11 +214,10 @@ module core_tb;
             imem_model_instance.lat_max = il;
         end else if ($test$plusargs("IMEM_RANDLAT")) begin
             imem_model_instance.lat_min = 1;
-            imem_model_instance.lat_max = 25;
+            imem_model_instance.lat_max = 6;
             imem_model_instance.gap_pct = 25;
         end
     end
-
     initial clk = 1'b0;
     always #2 clk = ~clk;
 
@@ -336,8 +340,6 @@ module core_tb;
     
     task automatic reset_dut;
         rst_n = 1'b0;
-        dmem_resp_valid = 1'b0;
-        dmem_resp_rdata = '0;
         // pending_load = 1'b0;
         // pending_rdata = '0;
         repeat (3) @(posedge clk);
@@ -367,51 +369,101 @@ module core_tb;
             MEM_LAT_MAX = 6;   // widen/narrow as needed
         end
     end
-    logic        resp_pending;
-    int          resp_countdown;
-    logic [31:0] resp_rdata_q;
-    always_comb begin
-        dmem_req_ready  = 1'b1;                       // no backpressure on accept
-        dmem_resp_valid = resp_pending && (resp_countdown == 0);
-        dmem_resp_rdata = resp_rdata_q;
+    // -------------------------------------------------------------------------
+    // Data backing store for the D-cache (write-through target + refill source).
+    //   refill (we=0): ready when idle; after MEM_LAT cycles streams the 8 words
+    //                  of the 32 B line, one per cycle (random gaps with
+    //                  +MEM_RANDLAT), dmem_resp_last on the 8th. First beat comes
+    //                  >= 2 cycles after the handshake.
+    //   write  (we=1): strobed word write performed at the handshake; with
+    //                  +MEM_RANDLAT a random 0..3 cycle stall precedes ready.
+    // `dmem` stays the single source of truth, so end-of-test checks on dmem[]
+    // keep working (write-through guarantees stores reach it).
+    // -------------------------------------------------------------------------
+    typedef enum logic [1:0] { DM_IDLE, DM_WAIT, DM_BEATS } dm_state_e;
+    dm_state_e   dm_st;
+    logic [31:0] dm_base;
+    int          dm_wait, dm_beat;
+    logic        dm_wr_armed;
+    int          dm_wr_wait;
+    int          MEM_GAP_PCT, MEM_WR_STALL_MAX;
+    initial begin
+        MEM_GAP_PCT      = MEM_RANDLAT ? 25 : 0;
+        MEM_WR_STALL_MAX = MEM_RANDLAT ? 3  : 0;
     end
+
+    // Out-of-range (wrong-path) reads return 0 instead of X.
+    function automatic logic [31:0] dmem_rd(input logic [31:0] a);
+        return (a[31:2] < 8192) ? dmem[a[31:2]] : 32'h0;
+    endfunction
+
+    assign dmem_req_ready = (dm_st == DM_IDLE) &&
+                            (!(dmem_req_valid && dmem_req_we) ||
+                              (dm_wr_armed && dm_wr_wait == 0));
 
     always @(posedge clk) begin
         if (!rst_n) begin
-            resp_pending      <= 1'b0;
-            resp_countdown    <= 0;
-            resp_rdata_q      <= '0;
+            dm_st             <= DM_IDLE;
+            dmem_resp_valid   <= 1'b0;
+            dmem_resp_last    <= 1'b0;
+            dmem_resp_data    <= '0;
+            dm_base           <= '0;
+            dm_wait           <= 0;
+            dm_beat           <= 0;
+            dm_wr_armed       <= 1'b0;
+            dm_wr_wait        <= 0;
             perf_bench_done   <= 1'b0;
             perf_bench_result <= '0;
         end else begin
-            // Response delivered this cycle -> the slot is free again.
-            if (resp_pending && resp_countdown == 0)
-                resp_pending <= 1'b0;
-            else if (resp_pending)
-                resp_countdown <= resp_countdown - 1;
- 
-            if (dmem_req_valid && dmem_req_ready) begin
-                if (dmem_req_we) begin
-                    for (int b = 0; b < 4; b++)
-                        if (dmem_req_wstrb[b])
-                            dmem[dmem_req_addr[31:2]][8*b +: 8] <= dmem_req_wdata[8*b +: 8];
- 
-                    if (dmem_req_addr == 32'h000003F0) begin
-                        perf_bench_result <= dmem_req_wdata;
-                        $display("BENCH RESULT STORE: value=%0d", dmem_req_wdata);
+            dmem_resp_valid <= 1'b0;
+            dmem_resp_last  <= 1'b0;
+            case (dm_st)
+                DM_IDLE: begin
+                    if (dmem_req_valid && dmem_req_we) begin
+                        if (!dm_wr_armed) begin                    // first sight: pick a stall
+                            dm_wr_armed <= 1'b1;
+                            dm_wr_wait  <= $urandom_range(MEM_WR_STALL_MAX, 0);
+                        end else if (dm_wr_wait == 0) begin        // handshake this cycle
+                            if (dmem_req_addr[31:2] < 8192)
+                                for (int b = 0; b < 4; b++)
+                                    if (dmem_req_wstrb[b])
+                                        dmem[dmem_req_addr[31:2]][8*b +: 8] <= dmem_req_wdata[8*b +: 8];
+
+                            if (dmem_req_addr == 32'h000003F0) begin
+                                perf_bench_result <= dmem_req_wdata;
+                                $display("BENCH RESULT STORE: value=%0d", dmem_req_wdata);
+                            end
+                            if (dmem_req_addr == 32'h000003F4) begin
+                                perf_bench_done <= 1'b1;
+                                $display("BENCH DONE STORE: cycle=%0d", perf_cycle_count + 1);
+                            end
+                            dm_wr_armed <= 1'b0;
+                        end else begin
+                            dm_wr_wait <= dm_wr_wait - 1;
+                        end
+                    end else if (dmem_req_valid) begin             // refill handshake this cycle
+                        dm_base <= {dmem_req_addr[31:5], 5'b0};
+                        dm_wait <= MEM_RANDLAT ? $urandom_range(MEM_LAT_MAX, MEM_LAT_MIN)
+                                               : MEM_LAT_MAX;
+                        dm_beat <= 0;
+                        dm_st   <= DM_WAIT;
                     end
-                    if (dmem_req_addr == 32'h000003F4) begin
-                        perf_bench_done <= 1'b1;
-                        $display("BENCH DONE STORE: cycle=%0d", perf_cycle_count + 1);
-                    end
-                end else begin
-                    resp_rdata_q   <= dmem[dmem_req_addr[31:2]];
-                    resp_pending   <= 1'b1;
-                    resp_countdown <= MEM_RANDLAT
-                                        ? $urandom_range(MEM_LAT_MIN, MEM_LAT_MAX) - 1
-                                        : MEM_LAT_MAX - 1;
                 end
-            end
+                DM_WAIT: begin
+                    if (dm_wait <= 1) dm_st <= DM_BEATS;
+                    else              dm_wait <= dm_wait - 1;
+                end
+                DM_BEATS: begin
+                    if (!($urandom_range(99, 0) < MEM_GAP_PCT)) begin
+                        dmem_resp_valid <= 1'b1;
+                        dmem_resp_data  <= dmem_rd(dm_base + (dm_beat << 2));
+                        dmem_resp_last  <= (dm_beat == 7);
+                        dm_beat         <= dm_beat + 1;
+                        if (dm_beat == 7) dm_st <= DM_IDLE;
+                    end
+                end
+                default: dm_st <= DM_IDLE;
+            endcase
         end
     end
 

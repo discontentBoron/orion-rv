@@ -16,15 +16,21 @@ module orion_core #(
     input  logic                            imem_resp_last,
 
 
-    // Data memory interface
+    // Data memory interface (D-cache backing store), one in-order channel:
+    //   refill: dmem_req_we=0, 32 B-aligned address, then 8 in-order 32-bit beats
+    //           on dmem_resp_* with dmem_resp_last on the 8th. Beats must arrive
+    //           AFTER the request handshake cycle; the cache never back-pressures.
+    //   write : dmem_req_we=1, word address + wdata/wstrb (write-through).
+    //           Completion is the dmem_req_ready handshake; no response beat.
     output logic                            dmem_req_valid,
+    input  logic                            dmem_req_ready,
     output logic                            dmem_req_we,
     output logic [DATA_WIDTH-1:0]           dmem_req_addr,
     output logic [DATA_WIDTH-1:0]           dmem_req_wdata,
     output logic [3:0]                      dmem_req_wstrb,
-    input  logic                            dmem_req_ready,
     input  logic                            dmem_resp_valid,
-    input  logic [DATA_WIDTH-1:0]           dmem_resp_rdata
+    input  logic [DATA_WIDTH-1:0]           dmem_resp_data,
+    input  logic                            dmem_resp_last
 );
     // Former top-level outputs, now internal-only signals
     logic [DATA_WIDTH-1:0]  fetch_pc;
@@ -84,6 +90,11 @@ module orion_core #(
 
     // LSU (load) side of the memory port, before arbitration
     logic                       lsu_req_valid, lsu_req_ready;
+    logic                   dc_req_valid, dc_req_we, dc_req_ready;
+    logic [DATA_WIDTH-1:0]  dc_req_addr, dc_req_wdata;
+    logic [3:0]             dc_req_wstrb;
+    logic                   dc_resp_valid;
+    logic [DATA_WIDTH-1:0]  dc_resp_rdata;
     logic [DATA_WIDTH-1:0]      lsu_req_addr;
     logic [DATA_WIDTH-1:0]    fetch_predicted_pc;
     logic [NUM_CDB_PORTS-1:0] cdb_valid_i;
@@ -366,8 +377,8 @@ module orion_core #(
         .mem_req_valid  (lsu_req_valid),
         .mem_req_addr   (lsu_req_addr),
         .mem_req_ready  (lsu_req_ready),
-        .mem_resp_valid (dmem_resp_valid),
-        .mem_resp_rdata (dmem_resp_rdata)
+        .mem_resp_valid (dc_resp_valid),
+        .mem_resp_rdata (dc_resp_rdata)
     );
     store_buffer #(.DEPTH(8), .SLACK(2)) u_sb (
         .clk          (clk),
@@ -394,17 +405,41 @@ module orion_core #(
     logic sb_lock_q, sel_sb;
     assign sel_sb        = sb_drain_valid & (sb_lock_q | ~lsu_req_valid);
 
-    assign dmem_req_valid = sel_sb | lsu_req_valid;
-    assign dmem_req_we    = sel_sb;
-    assign dmem_req_addr  = sel_sb ? sb_drain_addr  : lsu_req_addr;
-    assign dmem_req_wdata = sb_drain_wdata;                       // don't-care for reads
-    assign dmem_req_wstrb = sel_sb ? sb_drain_wstrb : 4'b0000;
-    assign lsu_req_ready = dmem_req_ready & ~sel_sb;
-    assign sb_drain_pop  = dmem_req_ready &  sel_sb;
+    assign dc_req_valid = sel_sb | lsu_req_valid;
+    assign dc_req_we    = sel_sb;
+    assign dc_req_addr  = sel_sb ? sb_drain_addr  : lsu_req_addr;
+    assign dc_req_wdata = sb_drain_wdata;                         // don't-care for reads
+    assign dc_req_wstrb = sel_sb ? sb_drain_wstrb : 4'b0000;
+    assign lsu_req_ready = dc_req_ready & ~sel_sb;
+    assign sb_drain_pop  = dc_req_ready &  sel_sb;
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) sb_lock_q <= 1'b0;
-        else        sb_lock_q <= sel_sb & ~dmem_req_ready;
+        else        sb_lock_q <= sel_sb & ~dc_req_ready;
     end
+
+    dcache u_dcache (
+        .clk            (clk),
+        .rst_n          (rst_n),
+        // core side
+        .req_valid      (dc_req_valid),
+        .req_we         (dc_req_we),
+        .req_addr       (dc_req_addr),
+        .req_wdata      (dc_req_wdata),
+        .req_wstrb      (dc_req_wstrb),
+        .req_ready      (dc_req_ready),
+        .resp_valid     (dc_resp_valid),
+        .resp_rdata     (dc_resp_rdata),
+        // backing store
+        .mem_req_valid  (dmem_req_valid),
+        .mem_req_ready  (dmem_req_ready),
+        .mem_req_we     (dmem_req_we),
+        .mem_req_addr   (dmem_req_addr),
+        .mem_req_wdata  (dmem_req_wdata),
+        .mem_req_wstrb  (dmem_req_wstrb),
+        .mem_resp_valid (dmem_resp_valid),
+        .mem_resp_data  (dmem_resp_data),
+        .mem_resp_last  (dmem_resp_last)
+    );
 endmodule
 

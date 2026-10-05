@@ -1,0 +1,362 @@
+library (dcache_tag_sram_1rw0r0w_21_64_freepdk45_SS_0p95V_125C_lib){
+    delay_model : "table_lookup";
+    time_unit : "1ns" ;
+    voltage_unit : "1V" ;
+    current_unit : "1mA" ;
+    resistance_unit : "1kohm" ;
+    capacitive_load_unit(1, pF) ;
+    leakage_power_unit : "1mW" ;
+    pulling_resistance_unit : "1kohm" ;
+    operating_conditions(OC){
+    process : 1.0 ;
+    voltage : 0.95 ;
+    temperature : 125;
+    }
+
+    input_threshold_pct_fall       :  50.0 ;
+    output_threshold_pct_fall      :  50.0 ;
+    input_threshold_pct_rise       :  50.0 ;
+    output_threshold_pct_rise      :  50.0 ;
+    slew_lower_threshold_pct_fall  :  10.0 ;
+    slew_upper_threshold_pct_fall  :  90.0 ;
+    slew_lower_threshold_pct_rise  :  10.0 ;
+    slew_upper_threshold_pct_rise  :  90.0 ;
+
+    nom_voltage : 0.95;
+    nom_temperature : 125;
+    nom_process : 1.0;
+    default_cell_leakage_power    : 0.0 ;
+    default_leakage_power_density : 0.0 ;
+    default_input_pin_cap    : 1.0 ;
+    default_inout_pin_cap    : 1.0 ;
+    default_output_pin_cap   : 0.0 ;
+    default_max_transition   : 0.5 ;
+    default_fanout_load      : 1.0 ;
+    default_max_fanout   : 4.0 ;
+    default_connection_class : universal ;
+
+    voltage_map ( VDD, 0.95 );
+    voltage_map ( GND, 0 );
+
+    lu_table_template(CELL_TABLE){
+        variable_1 : input_net_transition;
+        variable_2 : total_output_net_capacitance;
+        index_1("0.0025, 0.01, 0.04, 0.08");
+        index_2("0.00020910000000000001, 0.0016728000000000001, 0.0033456000000000002");
+    }
+
+    lu_table_template(CONSTRAINT_TABLE){
+        variable_1 : related_pin_transition;
+        variable_2 : constrained_pin_transition;
+        index_1("0.0025, 0.01, 0.04, 0.08");
+        index_2("0.0025, 0.01, 0.04, 0.08");
+    }
+
+    default_operating_conditions : OC; 
+
+
+    type (data){
+    base_type : array;
+    data_type : bit;
+    bit_width : 21;
+    bit_from : 20;
+    bit_to : 0;
+    }
+
+    type (addr){
+    base_type : array;
+    data_type : bit;
+    bit_width : 6;
+    bit_from : 5;
+    bit_to : 0;
+    }
+
+cell (dcache_tag_sram_1rw0r0w_21_64_freepdk45){
+    memory(){ 
+    type : ram;
+    address_width : 6;
+    word_width : 21;
+    }
+    interface_timing : true;
+    dont_use  : true;
+    map_only   : true;
+    dont_touch : true;
+    area : 6688.9679125;
+
+    pg_pin(vdd) {
+         voltage_name : VDD;
+         pg_type : primary_power;
+    }
+
+    pg_pin(gnd) {
+         voltage_name : GND;
+         pg_type : primary_ground;
+    }
+
+    leakage_power () {
+      value : 0.8318037;
+    }
+    cell_leakage_power : 0.8318037;
+    bus(din0){
+        bus_type  : data; 
+        direction  : input; 
+        capacitance : 0.00020910000000000001;  
+        memory_write(){ 
+            address : addr0; 
+            clocked_on  : clk0; 
+        }
+        pin(din0[20:0]){
+        timing(){ 
+            timing_type : setup_rising; 
+            related_pin  : "clk0"; 
+            rise_constraint(CONSTRAINT_TABLE) {
+            values("0.07, 0.07, 0.07, 0.07",\
+                   "0.07, 0.07, 0.07, 0.07",\
+                   "0.07, 0.07, 0.07, 0.07",\
+                   "0.07, 0.07, 0.07, 0.07");
+            }
+            fall_constraint(CONSTRAINT_TABLE) {
+            values("0.045, 0.045, 0.057, 0.07",\
+                   "0.045, 0.045, 0.057, 0.07",\
+                   "0.045, 0.045, 0.057, 0.07",\
+                   "0.045, 0.045, 0.057, 0.07");
+            }
+        }
+        timing(){ 
+            timing_type : hold_rising; 
+            related_pin  : "clk0"; 
+            rise_constraint(CONSTRAINT_TABLE) {
+            values("-0.028, -0.04, -0.04, -0.065",\
+                   "-0.028, -0.04, -0.04, -0.065",\
+                   "-0.028, -0.04, -0.04, -0.065",\
+                   "-0.028, -0.04, -0.04, -0.065");
+              }
+            fall_constraint(CONSTRAINT_TABLE) {
+            values("-0.04, -0.04, -0.04, -0.04",\
+                   "-0.04, -0.04, -0.04, -0.04",\
+                   "-0.04, -0.04, -0.04, -0.04",\
+                   "-0.04, -0.04, -0.04, -0.04");
+            }
+        }
+        }
+    }
+    bus(dout0){
+        bus_type  : data; 
+        direction  : output; 
+        max_capacitance : 0.0033456000000000002;  
+        min_capacitance : 0.00020910000000000001;  
+        memory_read(){ 
+            address : addr0; 
+        }
+        pin(dout0[20:0]){
+        timing(){ 
+            timing_sense : non_unate; 
+            related_pin : "clk0"; 
+            timing_type : falling_edge; 
+            cell_rise(CELL_TABLE) {
+            values("0.802, 0.816, 0.828",\
+                   "0.804, 0.817, 0.83",\
+                   "0.808, 0.822, 0.835",\
+                   "0.814, 0.827, 0.84");
+            }
+            cell_fall(CELL_TABLE) {
+            values("0.802, 0.816, 0.828",\
+                   "0.804, 0.817, 0.83",\
+                   "0.808, 0.822, 0.835",\
+                   "0.814, 0.827, 0.84");
+            }
+            rise_transition(CELL_TABLE) {
+            values("0.067, 0.078, 0.09",\
+                   "0.067, 0.078, 0.09",\
+                   "0.067, 0.078, 0.09",\
+                   "0.067, 0.078, 0.09");
+            }
+            fall_transition(CELL_TABLE) {
+            values("0.067, 0.078, 0.09",\
+                   "0.067, 0.078, 0.09",\
+                   "0.067, 0.078, 0.09",\
+                   "0.067, 0.078, 0.09");
+            }
+        }
+        }
+    }
+
+    bus(addr0){
+        bus_type  : addr; 
+        direction  : input; 
+        capacitance : 0.00020910000000000001;  
+        max_transition       : 0.08;
+        pin(addr0[5:0]){
+        timing(){ 
+            timing_type : setup_rising; 
+            related_pin  : "clk0"; 
+            rise_constraint(CONSTRAINT_TABLE) {
+            values("0.07, 0.07, 0.07, 0.07",\
+                   "0.07, 0.07, 0.07, 0.07",\
+                   "0.07, 0.07, 0.07, 0.07",\
+                   "0.07, 0.07, 0.07, 0.07");
+            }
+            fall_constraint(CONSTRAINT_TABLE) {
+            values("0.045, 0.045, 0.057, 0.07",\
+                   "0.045, 0.045, 0.057, 0.07",\
+                   "0.045, 0.045, 0.057, 0.07",\
+                   "0.045, 0.045, 0.057, 0.07");
+            }
+        }
+        timing(){ 
+            timing_type : hold_rising; 
+            related_pin  : "clk0"; 
+            rise_constraint(CONSTRAINT_TABLE) {
+            values("-0.028, -0.04, -0.04, -0.065",\
+                   "-0.028, -0.04, -0.04, -0.065",\
+                   "-0.028, -0.04, -0.04, -0.065",\
+                   "-0.028, -0.04, -0.04, -0.065");
+              }
+            fall_constraint(CONSTRAINT_TABLE) {
+            values("-0.04, -0.04, -0.04, -0.04",\
+                   "-0.04, -0.04, -0.04, -0.04",\
+                   "-0.04, -0.04, -0.04, -0.04",\
+                   "-0.04, -0.04, -0.04, -0.04");
+            }
+        }
+        }
+    }
+
+    pin(csb0){
+        direction  : input; 
+        capacitance : 0.00020910000000000001;  
+        timing(){ 
+            timing_type : setup_rising; 
+            related_pin  : "clk0"; 
+            rise_constraint(CONSTRAINT_TABLE) {
+            values("0.07, 0.07, 0.07, 0.07",\
+                   "0.07, 0.07, 0.07, 0.07",\
+                   "0.07, 0.07, 0.07, 0.07",\
+                   "0.07, 0.07, 0.07, 0.07");
+            }
+            fall_constraint(CONSTRAINT_TABLE) {
+            values("0.045, 0.045, 0.057, 0.07",\
+                   "0.045, 0.045, 0.057, 0.07",\
+                   "0.045, 0.045, 0.057, 0.07",\
+                   "0.045, 0.045, 0.057, 0.07");
+            }
+        }
+        timing(){ 
+            timing_type : hold_rising; 
+            related_pin  : "clk0"; 
+            rise_constraint(CONSTRAINT_TABLE) {
+            values("-0.028, -0.04, -0.04, -0.065",\
+                   "-0.028, -0.04, -0.04, -0.065",\
+                   "-0.028, -0.04, -0.04, -0.065",\
+                   "-0.028, -0.04, -0.04, -0.065");
+              }
+            fall_constraint(CONSTRAINT_TABLE) {
+            values("-0.04, -0.04, -0.04, -0.04",\
+                   "-0.04, -0.04, -0.04, -0.04",\
+                   "-0.04, -0.04, -0.04, -0.04",\
+                   "-0.04, -0.04, -0.04, -0.04");
+            }
+        }
+    }
+
+    pin(web0){
+        direction  : input; 
+        capacitance : 0.00020910000000000001;  
+        timing(){ 
+            timing_type : setup_rising; 
+            related_pin  : "clk0"; 
+            rise_constraint(CONSTRAINT_TABLE) {
+            values("0.07, 0.07, 0.07, 0.07",\
+                   "0.07, 0.07, 0.07, 0.07",\
+                   "0.07, 0.07, 0.07, 0.07",\
+                   "0.07, 0.07, 0.07, 0.07");
+            }
+            fall_constraint(CONSTRAINT_TABLE) {
+            values("0.045, 0.045, 0.057, 0.07",\
+                   "0.045, 0.045, 0.057, 0.07",\
+                   "0.045, 0.045, 0.057, 0.07",\
+                   "0.045, 0.045, 0.057, 0.07");
+            }
+        }
+        timing(){ 
+            timing_type : hold_rising; 
+            related_pin  : "clk0"; 
+            rise_constraint(CONSTRAINT_TABLE) {
+            values("-0.028, -0.04, -0.04, -0.065",\
+                   "-0.028, -0.04, -0.04, -0.065",\
+                   "-0.028, -0.04, -0.04, -0.065",\
+                   "-0.028, -0.04, -0.04, -0.065");
+              }
+            fall_constraint(CONSTRAINT_TABLE) {
+            values("-0.04, -0.04, -0.04, -0.04",\
+                   "-0.04, -0.04, -0.04, -0.04",\
+                   "-0.04, -0.04, -0.04, -0.04",\
+                   "-0.04, -0.04, -0.04, -0.04");
+            }
+        }
+    }
+
+    pin(clk0){
+        clock             : true;
+        direction  : input; 
+        capacitance : 0.00020910000000000001;  
+        internal_power(){
+            when : "!csb0 & !web0"; 
+            rise_power(scalar){
+                values("1.421318e+00");
+            }
+            fall_power(scalar){
+                values("1.385190e+00");
+            }
+        }
+        internal_power(){
+            when : "csb0 & !web0"; 
+            rise_power(scalar){
+                values("1.008699e+00");
+            }
+            fall_power(scalar){
+                values("9.885669e-01");
+            }
+        }
+        internal_power(){
+            when : "!csb0 & web0"; 
+            rise_power(scalar){
+                values("1.230942e+00");
+            }
+            fall_power(scalar){
+                values("1.204291e+00");
+            }
+        }
+        internal_power(){
+            when : "csb0 & web0"; 
+            rise_power(scalar){
+                values("9.811291e-01");
+            }
+            fall_power(scalar){
+                values("9.861191e-01");
+            }
+        }
+        timing(){ 
+            timing_type : "min_pulse_width"; 
+            related_pin  : clk0; 
+            rise_constraint(scalar) {
+                values("1.25"); 
+            }
+            fall_constraint(scalar) {
+                values("1.25"); 
+            }
+         }
+        timing(){ 
+            timing_type : "minimum_period"; 
+            related_pin  : clk0; 
+            rise_constraint(scalar) {
+                values("2.5"); 
+            }
+            fall_constraint(scalar) {
+                values("2.5"); 
+            }
+         }
+    }
+
+    }
+}

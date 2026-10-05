@@ -52,8 +52,6 @@ cov_work/
 
 pdk/
 techfile/
-*pdk*
-
 
 # --- Cadence Genus (Synthesis) ---
 fv/
